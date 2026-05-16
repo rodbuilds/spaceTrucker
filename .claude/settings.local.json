@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(openspec list *)"
+      "Bash(openspec list *)",
+      "Bash(ls C:\\\\\\\\Users\\\\\\\\moore\\\\\\\\Projects\\\\\\\\spaceTrucker\\\\\\\\previous-avorion-mods C:\\\\\\\\Users\\\\\\\\moore\\\\\\\\Projects\\\\\\\\spaceTrucker\\\\\\\\avorion-documentation C:\\\\\\\\Users\\\\\\\\moore\\\\\\\\Projects\\\\\\\\spaceTrucker\\\\\\\\avorion-scripts)",
+      "Bash(xargs grep -l -i -E \"trade|economy|commodity|goods|price\")",
+      "Bash(openspec new *)",
+      "Bash(openspec status *)",
+      "Bash(openspec instructions *)"
     ]
   }
 }
