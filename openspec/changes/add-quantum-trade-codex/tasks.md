@@ -1,69 +1,70 @@
 ## 1. Foundation — vocabulary + config
 
-- [ ] 1.1 Add new config keys to `data/config/spacetrucker.lua`: `tradeReportFee` (default 50_000), `factionSurveyBasePrice` (default 1_000_000), `surveyObservationCap` (default 2000). Keep MVP keys as deprecated aliases that map to the new ones on `apply()`.
-- [ ] 1.2 Add specialization-to-stars + label helpers to `data/scripts/lib/truckerarchetypes.lua`: `specializationToStars(s) -> 1..5`, `specializationLabel(s) -> "Lightly"|"Modestly"|"Solidly"|"Heavily"|"Pure"`. Use bucket boundaries `[0.30,0.59] [0.60,0.89] [0.90,1.19] [1.20,1.49] [1.50,1.80]`.
-- [ ] 1.3 Update `data/scripts/lib/truckerlog.lua` with a shared mail helper `TruckerLog.sendMail(player, subject, body)` (wraps vanilla mail API); leaves logging functions unchanged.
-- [ ] 1.4 Update `modinfo.lua`: `name = "Space Trucker: Quantum Trade"`; bump `version` to `0.2.0`. Keep `saveGameAltering = true`.
+- [x] 1.1 Add new config keys to `data/config/spacetrucker.lua`: `tradeReportFee` (default 50_000), `factionSurveyBasePrice` (default 1_000_000), `surveyObservationCap` (default 2000). Keep MVP keys as deprecated aliases that map to the new ones on `apply()`.
+- [x] 1.2 Add specialization-to-stars + label helpers to `data/scripts/lib/truckerarchetypes.lua`: `specializationToStars(s) -> 1..5`, `specializationLabel(s) -> "Lightly"|"Modestly"|"Solidly"|"Heavily"|"Pure"`. Bucket boundaries match spec.
+- [x] 1.3 Update `data/scripts/lib/truckerlog.lua` with a shared mail helper `TruckerLog.sendMail(player, subject, body)` (wraps vanilla mail API); leaves logging functions unchanged.
+- [x] 1.4 Update `modinfo.lua`: `title = "Space Trucker: Quantum Trade"`; bump `version` to `0.2.0`. Keep `saveGameAltering = true`.
 
 ## 2. Faction Survey persistence — storage migration
 
-- [ ] 2.1 In `data/scripts/lib/truckerreports.lua`, define the new minimal entry shape `{subjectFactionId, subjectFactionName, economy, specialization, acquiredAt}`. Drop fields `archetype` (renamed via field key `economy`), `biasCheap`, `biasDear`, `snapshot`, `strength` (renamed via `specialization`).
-- [ ] 2.2 Add `readSurveys(player)` + `writeSurveys(player, list)` that go through `TruckerSerialize`. On read, silently skip any entry missing the `economy` field (legacy MVP shape). Log a one-time per-galaxy warning ("Skipped N legacy report entries; create a fresh galaxy to reset.") if any were skipped. NO auto-upgrade.
-- [ ] 2.3 Rewrite `TruckerReports.purchase(buyer, subjectFaction)` to produce the new minimal entry; replace existing entry for same faction id rather than appending; charge `factionSurveyBasePrice × specialization`; use `player:canPayMoney(price)` with fallback to `player.money or 0`.
-- [ ] 2.4 Add `TruckerReports.priceFor(faction)` returning `factionSurveyBasePrice × getStrength(faction)` (renamed to `getSpecialization` internally via §3.3; keep `getStrength` as alias).
-- [ ] 2.5 Remove `TruckerReports.atWarWith` and all war-status code paths (corresponding to the REMOVED spec requirement).
-- [ ] 2.6 Add `TruckerReports.summarizeBias(economy, specialization)` returning `(sellsCheap, buysHigh)` tag lists derived from the effective bias table (apply specialization before threshold check).
-- [ ] 2.7 Add `TruckerReports.computePriceBand(economy, specialization)` returning `{ {name, vanilla, expected, multiplier, tag}, ... }` sorted by multiplier ascending; filters neutral commodities (multiplier within [0.95, 1.05]); used by Codex detail view.
+- [x] 2.1 New minimal entry shape `{subjectFactionId, subjectFactionName, economy, specialization, acquiredAt}` in `truckerreports.lua`.
+- [x] 2.2 `readSurveys`/`writeSurveys` via `TruckerSerialize`. Silently skip entries without `economy`. One-time legacy-warn flag stored on player.
+- [x] 2.3 `TruckerReports.purchase` rewritten: minimal entry, replaces same-faction entries, uses `getSpecialization`. (Affordability check lives in the merchant — see §4.4.)
+- [x] 2.4 `TruckerReports.priceFor(faction)` returns `PRICE_BASE * specialization` via `getSpecialization` (alias to `getStrength`).
+- [x] 2.5 `atWarWith` and all war-status code paths removed.
+- [x] 2.6 `TruckerReports.summarizeBias(economy, specialization)` uses effective (specialization-adjusted) bias.
+- [x] 2.7 `TruckerReports.computePriceBand(economy, specialization)` filters neutrals, sorts by multiplier asc.
 
 ## 3. Faction-commodity-bias — formalize specialization
 
-- [ ] 3.1 Verify `truckerarchetyperoll.rollFor` already returns `(choice, fallback, strength)` from MVP iterations; no change required if so.
-- [ ] 3.2 Verify `truckerassignarchetypes.ensureAssigned` persists `Faction:setValue("trucker_strength", n)`. Add a back-fill branch: if `trucker_archetype` exists but `trucker_strength` does not, roll specialization only (without touching the archetype) and persist.
-- [ ] 3.3 Rename internal API: `TruckerAssignArchetypes.getStrength` → `getSpecialization`; keep `getStrength` as a one-line alias for back-compat.
-- [ ] 3.4 Verify `truckerpricewrap.lua` stashes both `trucker_station_arch` and `trucker_station_strength` on every wrapped merchant's entity at `initialize` time — confirmed by MVP fix; no code change expected.
-- [ ] 3.5 Verify `truckerpricehook.lua` reads both keys from Entity and applies `effectiveBias = 1 + (baseBias - 1) × specialization` — confirmed by MVP fix; no code change expected.
+- [x] 3.1 `truckerarchetyperoll.rollFor` returns `(choice, fallback, specialization)` — verified.
+- [x] 3.2 Back-fill branch added to `ensureAssigned`: if archetype exists but specialization is missing, roll specialization only.
+- [x] 3.3 `getSpecialization` is now the canonical method; `getStrength` aliases it.
+- [x] 3.4 `truckerpricewrap.lua` stashes both keys on entity — verified by grep.
+- [x] 3.5 `truckerpricehook.lua` reads both keys and applies effective bias — verified by grep.
 
 ## 4. Quantum Trading AI merchant — at-TP UI
 
-- [ ] 4.1 Rename `data/scripts/entity/merchants/truckerreportmerchant.lua` namespace to `QuantumTradeAI` (file path stays the same for attachment compatibility; update the `-- namespace` directive line and all internal references). Confirm `-- namespace` directive stays on its own line per Avorion's scanner.
-- [ ] 4.2 Replace the pre-purchase preview UI with the Trade Report layout: scrollable per-commodity rows (commodity name, best buy `price @ station (sector) Ns ago`, best sell, observation count + range). Layout uses correctly-bounded `Rect(topLeft, bottomRight)` constructors (avoid the inverted-rect bug from MVP).
-- [ ] 4.3 Server RPC `serverOpenTradeReport(playerIndex)`: deduct `tradeReportFee` (skip for `infiniteResources`); compute whole-journal aggregation capped at `surveyObservationCap`; return payload via `invokeClientFunction("clientReceiveTradeReport", ...)`.
-- [ ] 4.4 Server RPC `serverAcquireFactionSurvey(playerIndex)`: validates affordability, calls `TruckerReports.purchase(...)`, sends success chat + mail-on-first-purchase.
-- [ ] 4.5 Client `onShowWindow` triggers `serverOpenTradeReport` (the pay-on-open flow). Show "insufficient credits" state if server returns refusal payload.
-- [ ] 4.6 Client renders cross-sell button: "Acquire Faction Survey — N cr" — uses pre-computed N from the report payload. If player owns the Survey, render "Faction Survey owned ✓" status line instead.
-- [ ] 4.7 Vocabulary audit: scan all visible strings in the merchant file; remove "vanilla", "bias", "biased", "archetype", "strength", "multiplier". Replace per the mapping in `proposal.md`.
+- [x] 4.1 Namespace renamed to `QuantumTradeAI`; `-- namespace` directive on its own line; file path unchanged for attachment compatibility.
+- [x] 4.2 Trade Report layout in place: fee line, body label (per-commodity rows with station + sector + relative age + stats), status line, Acquire button. Rects properly bounded.
+- [x] 4.3 `serverOpenTradeReport` deducts `TRADE_REPORT_FEE` (skips for `infiniteResources`), builds whole-journal aggregation, sends payload via `invokeClientFunction("clientReceiveTradeReport", ...)`.
+- [x] 4.4 `serverAcquireFactionSurvey` validates affordability, charges price, calls `TruckerReports.purchase`, sends chat confirmation + first-purchase mail.
+- [x] 4.5 Client `onShowWindow` triggers `serverOpenTradeReport`; insufficient-credits state renders cleanly.
+- [x] 4.6 Cross-sell button: "Acquire Faction Survey" with price in status line, or "Faction Survey owned : on file in your Codex" when owned.
+- [x] 4.7 Vocabulary audit: only matches are code identifiers (storage keys + include paths), no player-facing strings.
 
 ## 5. Trader's Codex — player UI
 
-- [ ] 5.1 Create `data/scripts/player/tradercodexmenu.lua`. Server-side: `initialize()` registers a menu entry via Player's `addScriptOnce` and UI registration pattern (cross-check `avorion-scripts/player/init.lua` for the canonical pattern).
-- [ ] 5.2 Add to `data/scripts/player/init.lua` (mod overlay): `player:addScriptOnce("data/scripts/player/tradercodexmenu.lua")` so the menu attaches on player join. Preserve any other mod-attached scripts.
-- [ ] 5.3 Create `data/scripts/player/tradercodexpanel.lua` (client-side UI script attached by `tradercodexmenu.lua`). Two-panel layout: list view on top, detail view shown when a row is selected.
-- [ ] 5.4 List view: columns Faction, Economy, Specialization (stars rendered via `★`/`☆` glyphs), Sells Low (joined tags), Buys High (joined tags). Implement sort by column header click; default sort = Faction name ascending.
-- [ ] 5.5 Server RPC `serverGetCodexList(playerIndex)`: returns array of `{factionId, factionName, economy, specialization, sellsCheap, buysHigh, acquiredAt}` per stored Survey. One-shot; no streaming.
-- [ ] 5.6 Detail view: header (faction name, Economy + Specialization stars + word label), sells-low/buys-high tag lines, commodity table (Commodity, Galactic Avg, Faction Avg), "Show Home Sector on Map" button. NO station names. Filter neutral commodities.
-- [ ] 5.7 Server RPC `serverGetCodexDetail(playerIndex, factionId)`: returns `{factionName, economy, specialization, sellsCheap, buysHigh, priceBand: [{name, vanilla, expected}, ...]}`. Compute via `TruckerReports.computePriceBand` + `summarizeBias`.
-- [ ] 5.8 Empty state: when `serverGetCodexList` returns empty, the list view renders an onboarding line ("Visit any Trading Post and use the Quantum Trading AI to acquire your first Faction Survey.") with no table.
-- [ ] 5.9 "Show Home Sector on Map" button → client invokes server RPC `serverGetHomeSector(factionId)`, which returns `(x, y)` via `Faction:getHomeSector()` (or the equivalent stable getter); client opens the galaxy map centered on those coords. If the API returns nil, show a "Home sector unknown" status line instead of opening the map.
-- [ ] 5.10 Monochrome rendering audit: no color-only encoding; star characters for Specialization rank; arrow glyphs for sort direction; column alignment + whitespace for grouping.
+- [x] 5.1 *Simplified*: single file `data/scripts/player/tradercodex.lua` handles both menu registration and UI (matches vanilla `encyclopedia.lua` pattern — separation into two files was unnecessary).
+- [x] 5.2 `data/scripts/player/init.lua` now attaches `tradercodex.lua` on player join (and preserves the existing observer script).
+- [x] 5.3 Same as 5.1: list-on-top / detail-on-bottom layout inside a single tab on `PlayerWindow`.
+- [x] 5.4 List shows Faction / Economy / Specialization (stars as `*`/`.` for source safety; spec allows alternate glyphs at render time) / Sells / Buys, with sort buttons for Faction / Economy / Specialization / Acquired. Default = Faction ascending; second click toggles direction.
+- [x] 5.5 `serverGetCodexList` returns the array shape; pushed to client via `clientReceiveCodexList`.
+- [x] 5.6 Detail view: header (name + Economy + stars + word label), sells/buys lines, commodity table (Galactic Avg / Faction Avg), "Show Home Sector on Map" button. No station names. Neutrals filtered by `computePriceBand`.
+- [x] 5.7 `serverGetCodexDetail` returns the detail payload, computed via `computePriceBand` + `summarizeBias`. Trimmed to top 40 rows with "(showing top N of M)" truncation hint.
+- [x] 5.8 Empty-state label "Visit any Trading Post..." rendered when the list is empty.
+- [x] 5.9 `serverShowHomeSector` returns `(x, y)` via `Faction:getHomeSectorCoordinates()` with `faction.homeSector` fallback; client opens galaxy map via `GalaxyMap():show(x, y)`; nil response renders "Home sector unknown" status.
+- [x] 5.10 Monochrome: stars (ASCII), column alignment, whitespace dividers, no color-only encoding.
 
 ## 6. First-purchase mail
 
-- [ ] 6.1 Add a one-time flag on player (`Player:setValue("trucker_codex_intro_sent", true)`).
-- [ ] 6.2 In `serverAcquireFactionSurvey`, after a successful purchase, check the flag. If absent, send the orientation mail via `TruckerLog.sendMail` and set the flag.
-- [ ] 6.3 Mail body draft (plain text, no clickable links): "Captain, your purchase of intel on [Faction] has been filed in your Trader's Codex. Open the Codex from your player menu to review. — Quantum Trading AI"
+- [x] 6.1 One-time flag `trucker_codex_intro_sent` set on player.
+- [x] 6.2 `serverAcquireFactionSurvey` checks the flag; if absent, sends mail via `TruckerLog.sendMail` and sets the flag.
+- [x] 6.3 Mail body drafted inline, plain text, addresses the captain and points to the player menu.
 
 ## 7. Chat command updates
 
-- [ ] 7.1 In `data/scripts/commands/trucker.lua`, rename internal variables and chat output labels: archetype→Economy, strength→Specialization, "Tends CHEAP"/"Tends DEAR" stay as already-renamed "Sells cheap"/"Buys high".
-- [ ] 7.2 `/trucker reports` output: render via the new live-render path; include Specialization as `★★★☆☆ (Solidly)` rather than `strength 1.05`.
-- [ ] 7.3 `/trucker survey` keeps the chat-text path as admin/diagnostic surface only. Add a one-line hint to its output: "(Visit a Trading Post for the full Quantum Trading AI Trade Report.)"
-- [ ] 7.4 `/trucker debug` outputs unchanged in structure; verify it still works after the rename pass.
+- [x] 7.1 Command rewritten with new vocabulary (Economy / Specialization / Galactic Avg / Faction Avg); survey lib `formatArchetypeHint` also updated.
+- [x] 7.2 `/trucker reports` renders via `renderSurvey` with stars + word label; live-computed price band via `computePriceBand`. Added `/trucker codex` as a friendly alias.
+- [x] 7.3 `/trucker survey` appended with the "Visit a Trading Post for the full Quantum Trading AI Trade Report." hint.
+- [x] 7.4 `/trucker debug` still works; label updated to "Faction Surveys: N" (was "Reports purchased: N").
 
 ## 8. Cleanup + verification
 
-- [ ] 8.1 Update `README.md`: terminology pass (Economy / Specialization / Galactic Avg / Faction Avg / Trade Report / Faction Survey); add a "Trader's Codex" section describing the menu button and first-purchase mail; refresh the `/trucker` command list.
-- [ ] 8.2 Update `data/config/spacetrucker.lua` doc comments to use the new vocabulary; keep deprecated key aliases noted.
-- [ ] 8.3 Delete any stale references to "Sector Survey" and "Faction Commodity Report" from in-mod docs and code comments where they could confuse a future reader. Code-level Lua identifiers can stay (refactor scope is bounded; rename what's player-visible only).
+- [x] 8.1 README rewritten with new title "Space Trucker: Quantum Trade", new What-it-does section, Trader's Codex section, updated config + commands lists, upgrade note.
+- [x] 8.2 `data/config/spacetrucker.lua` rewritten with new vocabulary; deprecated key aliases noted in comment + handled in `apply()`.
+- [x] 8.3 Stale player-facing references swept; only Lua identifiers (function names, storage keys) retain old terms for compat.
+- [x] 8.10 Rewrote `modinfo.lua` `description` per D12 into a player-facing pitch (multi-paragraph, story-led, explains Economy / Specialization / Trade Report / Codex without modder jargon).
 - [ ] 8.4 Manual verification on a fresh galaxy: install the v0.2.0 build, jump through several sectors, observe Economy assignments + Specialization values in the log. *(requires user verification)*
 - [ ] 8.5 Manual verification of Codex UI: open player menu, click Trader's Codex with zero entries (see empty state), purchase one Faction Survey at a TP, see first-purchase mail arrive, re-open Codex and see the row + detail view. *(requires user verification)*
 - [ ] 8.6 Manual verification of Trade Report at TP: open Quantum Trading AI, confirm the fee deducts, confirm per-commodity rows render with station + sector + relative time, confirm cross-sell button appears/changes based on Survey ownership. *(requires user verification)*

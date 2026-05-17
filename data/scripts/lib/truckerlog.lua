@@ -35,4 +35,23 @@ function TruckerLog.banner(version)
     print(string.format("%s ====================================================", PREFIX))
 end
 
+-- Send an in-game mail to a player. Wraps the vanilla mail API (server-side
+-- only). Returns true if the mail was sent, false on any error.
+function TruckerLog.sendMail(player, subject, body)
+    if not onServer() then return false end
+    if not player or not subject or not body then return false end
+    local ok, err = pcall(function()
+        local mail = Mail()
+        mail.sender   = "Quantum Trading AI"
+        mail.header   = subject
+        mail.text     = body
+        player:addMail(mail)
+    end)
+    if not ok then
+        TruckerLog.warn("sendMail failed: %s", tostring(err))
+        return false
+    end
+    return true
+end
+
 return TruckerLog

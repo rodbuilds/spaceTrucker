@@ -1,4 +1,4 @@
--- Sector Survey: derives best-buy / best-sell observations per commodity
+-- Journal survey data layer: derives best-buy / best-sell observations per commodity
 -- for the player's effective journal (personal + alliance-shared) and
 -- formats them for display.
 package.path = package.path .. ";data/scripts/lib/?.lua"
@@ -89,16 +89,20 @@ function TruckerSurvey.formatArchetypeHint(player, faction)
     local report = TruckerReports.latestFor(player, faction.index)
     if not report then
         return {string.format(
-            "[%s] Faction archetype unknown — purchase a Faction Commodity Report to learn.",
+            "[%s] Economy unknown - acquire a Faction Survey from the Quantum Trading AI to learn.",
             tostring(faction.name))}
     end
-    local sellsCheap, buysHigh = TruckerReports.summarizeBias(
-        report.archetype, report.strength or 1.0)
+    local economy        = report.economy or report.archetype       -- new shape, legacy fallback
+    local specialization = report.specialization or report.strength or 1.0
+    local sellsCheap, buysHigh = TruckerReports.summarizeBias(economy, specialization)
     local cheap = #sellsCheap > 0 and table.concat(sellsCheap, ", ") or "(none)"
     local dear  = #buysHigh   > 0 and table.concat(buysHigh,   ", ") or "(none)"
+    local TruckerArchetypes = include("truckerarchetypes")
+    local stars = TruckerArchetypes.specializationStarString(specialization)
+    local label = TruckerArchetypes.specializationLabel(specialization)
     local lines = {
-        string.format("[%s -- %s (strength %.2f)]",
-            tostring(faction.name), tostring(report.archetype), report.strength or 1.0),
+        string.format("[%s -- %s Economy  %s (%s)]",
+            tostring(faction.name), tostring(economy), stars, label),
         string.format("  Sells cheap: %s", cheap),
         string.format("  Buys high  : %s", dear),
     }

@@ -104,18 +104,43 @@ function TruckerArchetypes.getBias(name)
     return TruckerArchetypes.BIAS[name]
 end
 
--- effective[tag] = 1.0 + (base[tag] - 1.0) * strength
--- A strength of 0 collapses every multiplier back to 1.0 (neutral).
--- A strength of 1.0 returns the table as-is.
-function TruckerArchetypes.getEffectiveBias(name, strength)
+-- effective[tag] = 1.0 + (base[tag] - 1.0) * specialization
+-- A specialization of 0 collapses every multiplier back to 1.0 (neutral).
+-- A specialization of 1.0 returns the table as-is.
+function TruckerArchetypes.getEffectiveBias(name, specialization)
     local base = TruckerArchetypes.BIAS[name]
     if not base then return nil end
-    if type(strength) ~= "number" then strength = 1.0 end
+    if type(specialization) ~= "number" then specialization = 1.0 end
     local out = {}
     for tag, m in pairs(base) do
-        out[tag] = 1.0 + (m - 1.0) * strength
+        out[tag] = 1.0 + (m - 1.0) * specialization
     end
     return out
+end
+
+-- Player-facing rendering: convert specialization scalar to 1..5 stars.
+-- Bucket boundaries: [0.30,0.59] [0.60,0.89] [0.90,1.19] [1.20,1.49] [1.50,1.80]
+function TruckerArchetypes.specializationToStars(s)
+    if type(s) ~= "number" then return 3 end
+    if s < 0.60 then return 1
+    elseif s < 0.90 then return 2
+    elseif s < 1.20 then return 3
+    elseif s < 1.50 then return 4
+    else return 5 end
+end
+
+-- Word label matching the same bucket as specializationToStars.
+function TruckerArchetypes.specializationLabel(s)
+    local stars = TruckerArchetypes.specializationToStars(s)
+    return ({"Lightly", "Modestly", "Solidly", "Heavily", "Pure"})[stars]
+end
+
+-- Render specialization as a fixed-width star string. Uses ASCII glyphs
+-- ("*" filled, "." empty) for maximum Avorion-Lua source compatibility;
+-- UI surfaces can substitute unicode at render time if desired.
+function TruckerArchetypes.specializationStarString(s)
+    local n = TruckerArchetypes.specializationToStars(s)
+    return string.rep("*", n) .. string.rep(".", 5 - n)
 end
 
 return TruckerArchetypes

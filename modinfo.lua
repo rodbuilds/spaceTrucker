@@ -11,13 +11,21 @@ meta =
     name = "spaceTrucker",
 
     -- Title of your mod that will be displayed to players
-    title = "Space Trucker",
+    title = "Space Trucker: Quantum Trade",
 
     -- Type of your mod, either "mod" or "factionpack"
     type = "mod",
 
     -- Description of your mod that will be displayed to players
-    description = "Space Trucker is a mod that enhances your space trucking experience with new features and mechanics.",
+    description = [[You came to Avorion to salvage, mine, or fight. Then you noticed The Iron Coalition pays double for raw ore -- and you understood there was a fourth way.
+
+Space Trucker: Quantum Trade makes hauling a real profession. Every NPC faction quietly gets a hidden Economy (Industrial, Mining, Refinery, Frontier, Mercantile, Militant, Agricultural) and a Specialization rating from 1 to 5 stars. Those two numbers bias every station price in their territory: a Heavily Industrial faction sells parts cheap and pays premium for raw inputs; a Pure Mining faction practically gives ore away. The bigger the Specialization, the wider the spread.
+
+Equip a Trading System and the mod starts a persistent journal of every price you can see, sector after sector, far beyond what one ship can remember. At any Trading Post, pay the Quantum Trading AI to crunch the entire log into per-commodity best-buy and best-sell intel: who sells lowest, who buys highest, which stations are worth the jump. Like the vanilla Trading Subsystem, but unbound by range.
+
+Find a faction worth specializing in? Acquire a permanent Faction Survey from the AI and file it in your Trader's Codex -- a tab on your player menu listing every faction you've studied, sortable by name, Economy, Specialization, or date. Each entry shows Galactic Avg vs Faction Avg per commodity so you know exactly what they pay for what.
+
+Read the markets. Run the routes. Get rich. The cargo bay doesn't care how you feel about combat.]],
 
     -- Insert all authors into this list
     authors = {"Rodx", "Servamp"},
@@ -26,7 +34,7 @@ meta =
     -- This will be used to check for unmet dependencies or incompatibilities, and to check compatibility between clients and dedicated servers with mods.
     -- If a client with an unmatching major or minor mod version wants to log into a server, login is prohibited.
     -- Unmatching patch version still allows logging into a server. This works in both ways (server or client higher or lower version).
-    version = "0.1.0",
+    version = "0.2.0",
 
     -- If your mod requires dependencies, enter them here. The game will check that all dependencies given here are met.
     -- Possible attributes:

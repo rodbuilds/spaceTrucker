@@ -47,6 +47,16 @@ function TruckerAssignArchetypes.ensureAssigned(faction)
 
     local existing = faction:getValue(ARCH_KEY)
     if existing and TruckerArchetypes.isValid(existing) then
+        -- Back-fill specialization for factions assigned before specialization
+        -- was tracked (or whose strength persistence failed). Roll only the
+        -- specialization; the economy stays put.
+        if type(faction:getValue(STRENGTH_KEY)) ~= "number" then
+            local _, _, specialization = TruckerRoll.rollFor(faction, {}, 0)
+            faction:setValue(STRENGTH_KEY, specialization)
+            TruckerLog.info(
+                "Back-filled specialization %.2f for %s (#%d)",
+                specialization, tostring(faction.name or "?"), faction.index or -1)
+        end
         return existing
     end
 
@@ -74,15 +84,20 @@ function TruckerAssignArchetypes.ensureAssigned(faction)
     return choice, strength
 end
 
--- Read existing strength (or default 1.0 if missing — back-compat with
--- pre-strength assignments). Returns nil only if faction has no archetype.
-function TruckerAssignArchetypes.getStrength(faction)
+-- Read existing specialization (or default 1.0 if missing).
+-- Returns nil only if the faction has no economy assignment.
+function TruckerAssignArchetypes.getSpecialization(faction)
     if not onServer() or not faction then return nil end
     local arch = faction:getValue(ARCH_KEY)
     if not arch or not TruckerArchetypes.isValid(arch) then return nil end
     local s = faction:getValue(STRENGTH_KEY)
     if type(s) ~= "number" then return 1.0 end
     return s
+end
+
+-- Back-compat alias. Prefer getSpecialization in new code.
+function TruckerAssignArchetypes.getStrength(faction)
+    return TruckerAssignArchetypes.getSpecialization(faction)
 end
 
 -- Dump current distribution to the log. Useful for the §2.8 verification.

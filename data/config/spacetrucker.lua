@@ -1,4 +1,4 @@
--- Space Trucker server-side configuration.
+-- Space Trucker: Quantum Trade — server-side configuration.
 --
 -- This file is loaded once at server start by including it from any of
 -- the lib modules that need configurable values. Edit and reload the
@@ -14,43 +14,59 @@ SpaceTruckerConfig = {}
 -- Older entries are pruned first when the cap is reached.
 SpaceTruckerConfig.journalMaxEntries = 5000
 
--- Faction commodity reports pricing.
--- Final price = priceBase + max(0, faction.power) * pricePerPower
-SpaceTruckerConfig.reportPriceBase     = 50000
-SpaceTruckerConfig.reportPricePerPower = 5000
+-- Trade Report (Quantum Trading AI) fee per open. Charged when the player
+-- opens the Trade Report window at a Trading Post / Headquarters.
+SpaceTruckerConfig.tradeReportFee = 50000
 
--- Maximum snapshot rows captured into a purchased report.
-SpaceTruckerConfig.reportSnapshotRows  = 100
+-- Faction Survey acquisition price base.
+-- Final price = factionSurveyBasePrice * specialization
+-- (specialization is the per-faction scalar rolled at assignment, ~0.3..1.8)
+SpaceTruckerConfig.factionSurveyBasePrice = 1000000
 
--- Maximum share of assigned factions any single archetype may occupy.
+-- Trade Report observation cap: aggregate at most this many journal
+-- observations (newest first) when computing the Trade Report payload.
+-- Invisible to the player; a safety belt against pathological saves.
+SpaceTruckerConfig.surveyObservationCap = 2000
+
+-- Maximum share of assigned factions any single Economy may occupy.
 -- Distribution guardrail; values in (0, 1].
-SpaceTruckerConfig.archetypeMaxShare   = 0.30
+SpaceTruckerConfig.archetypeMaxShare = 0.30
 
 -- Trait influence overrides. Set to nil to use built-in defaults.
--- Format: { traitName = { archetypeName = additiveWeight, ... }, ... }
+-- Format: { traitName = { economyName = additiveWeight, ... }, ... }
 SpaceTruckerConfig.traitInfluence = nil
+
+-- --- Deprecated MVP-era aliases (do not edit; kept so older configs still load). ---
+SpaceTruckerConfig.reportPriceBase     = nil
+SpaceTruckerConfig.reportPricePerPower = nil
+SpaceTruckerConfig.reportSnapshotRows  = nil
 
 -- Apply the configured values to the runtime modules. Call this once
 -- after loading. (Deferred so users can edit this file in isolation.)
 function SpaceTruckerConfig.apply()
-    local TruckerJournal = include("truckerjournal")
-    local TruckerReports = include("truckerreports")
+    local TruckerJournal    = include("truckerjournal")
+    local TruckerReports    = include("truckerreports")
     local TruckerArchetypes = include("truckerarchetypes")
 
     if SpaceTruckerConfig.journalMaxEntries then
         TruckerJournal.MAX_ENTRIES = SpaceTruckerConfig.journalMaxEntries
     end
-    if SpaceTruckerConfig.reportPriceBase then
-        TruckerReports.PRICE_BASE = SpaceTruckerConfig.reportPriceBase
+    if SpaceTruckerConfig.tradeReportFee then
+        TruckerReports.TRADE_REPORT_FEE = SpaceTruckerConfig.tradeReportFee
     end
-    if SpaceTruckerConfig.reportPricePerPower then
-        TruckerReports.PRICE_PER_POWER = SpaceTruckerConfig.reportPricePerPower
+    if SpaceTruckerConfig.factionSurveyBasePrice then
+        TruckerReports.PRICE_BASE = SpaceTruckerConfig.factionSurveyBasePrice
     end
-    if SpaceTruckerConfig.reportSnapshotRows then
-        TruckerReports.MAX_SNAPSHOT_ROWS = SpaceTruckerConfig.reportSnapshotRows
+    if SpaceTruckerConfig.surveyObservationCap then
+        TruckerReports.OBSERVATION_CAP = SpaceTruckerConfig.surveyObservationCap
     end
     if SpaceTruckerConfig.archetypeMaxShare then
         TruckerArchetypes.MAX_SHARE = SpaceTruckerConfig.archetypeMaxShare
+    end
+
+    -- Deprecated keys map to new ones if a user-edited config still sets them.
+    if SpaceTruckerConfig.reportPriceBase then
+        TruckerReports.PRICE_BASE = SpaceTruckerConfig.reportPriceBase
     end
 end
 
