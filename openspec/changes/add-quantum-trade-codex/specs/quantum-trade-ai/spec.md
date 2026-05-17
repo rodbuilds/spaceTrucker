@@ -16,21 +16,57 @@ The system SHALL attach a Quantum Trading AI merchant interaction to every Tradi
 - **WHEN** a player approaches a station owned by an excluded faction (pirate, smuggler, Xsotan, story-only)
 - **THEN** the Quantum Trading AI merchant entry SHALL NOT be available
 
-### Requirement: Trade Report is a paid per-use service
+### Requirement: Trade Report is a paid per-use service with explicit consent
 
-Selecting the Quantum Trading AI merchant SHALL open a Trade Report window. Opening the Trade Report SHALL charge the player a flat fee defined by the `tradeReportFee` configuration value (default 50,000 cr). If the player cannot pay, the window SHALL display a clear "insufficient credits" message and SHALL NOT render report content. Each successful purchase SHALL produce one Trade Report view; closing and reopening the window SHALL incur another charge.
+Selecting the Quantum Trading AI merchant SHALL open the window for FREE. The window SHALL display a "Pay X cr to run Trade Report" button (label includes the fee from `tradeReportFee`, default 50,000 cr) and SHALL NOT display report content until the player clicks that button. Clicking it SHALL deduct the fee, after which the Trade Report content SHALL load. Players with `infiniteResources` SHALL still see the explicit button but SHALL NOT have credits deducted. If the player cannot pay, the system SHALL display an "insufficient credits" message and leave the button enabled.
 
-#### Scenario: Successful Trade Report purchase
-- **WHEN** a player with sufficient credits opens the Trade Report
-- **THEN** the configured fee SHALL be deducted and the Trade Report content SHALL render
+#### Scenario: Opening the window is free
+- **WHEN** a player selects the Quantum Trading AI merchant
+- **THEN** the window opens immediately with no credit deduction; the pay-to-run button is displayed showing the configured fee
 
-#### Scenario: Insufficient credits
-- **WHEN** a player attempts to open the Trade Report without sufficient credits
-- **THEN** the system SHALL display an "insufficient credits" message naming the required amount and SHALL NOT deduct any credits or render report content
+#### Scenario: Running the report charges the fee
+- **WHEN** a player with sufficient credits clicks the pay-to-run button
+- **THEN** the fee is deducted and the Trade Report content (commodity table) loads
+
+#### Scenario: Insufficient credits at run time
+- **WHEN** a player without sufficient credits clicks the pay-to-run button
+- **THEN** the system displays an "insufficient credits" message and the button stays enabled so the player can try again later
 
 #### Scenario: Creative mode / infinite resources
-- **WHEN** a player with `infiniteResources` opens the Trade Report
-- **THEN** the system SHALL render the report regardless of the credit check (matching vanilla behaviour at other paid merchants)
+- **WHEN** a player with `infiniteResources` clicks the pay-to-run button
+- **THEN** the report content loads without credit deduction
+
+### Requirement: Paid Trade Report stays valid for a configurable window
+
+After a player pays for a Trade Report, the report SHALL remain valid for the next `tradeReportValiditySeconds` seconds (default 3600 — one hour). During the validity window, reopening the Quantum Trading AI at ANY Trading Post or Headquarters SHALL auto-load the Trade Report content without any additional payment. The window SHALL display the remaining validity time. Validity is per-player and persisted via `Player:setValue`.
+
+#### Scenario: Reopen during validity
+- **WHEN** a player pays for a Trade Report and reopens the Quantum Trading AI window before the validity window expires
+- **THEN** the report content auto-loads without prompting for payment; the window shows the remaining validity time
+
+#### Scenario: Reopen at a different station during validity
+- **WHEN** a player pays at one Trading Post and reopens the Quantum Trading AI at a different Trading Post or Headquarters within the validity window
+- **THEN** the report auto-loads for free; validity is global per player, not per station
+
+#### Scenario: Validity expires
+- **WHEN** a player reopens the Quantum Trading AI after the validity window has expired
+- **THEN** the pay-to-run button reappears and the player must pay again to load report content
+
+### Requirement: Faction Survey acquisition unlocks only after a Trade Report has been run
+
+The "Acquire Faction Survey" button in the Quantum Trading AI window SHALL be inactive until the player has run the Trade Report at least once during this window session. Once a Trade Report has been run, the button SHALL become active and display the Survey price (Faction Survey acquisition still costs `factionSurveyBasePrice × specialization` as defined elsewhere).
+
+#### Scenario: Survey unavailable before running report
+- **WHEN** the Quantum Trading AI window first opens (Trade Report not yet run)
+- **THEN** the Acquire Faction Survey button is visible but inactive; a status line explains that running the Trade Report unlocks it
+
+#### Scenario: Survey unlocks after running report
+- **WHEN** the player has clicked the pay-to-run button and the Trade Report has loaded
+- **THEN** the Acquire Faction Survey button becomes active; clicking it begins the Survey acquisition flow as defined in faction-commodity-reports
+
+#### Scenario: Survey owned already
+- **WHEN** the player already owns a Faction Survey for the current station's faction
+- **THEN** the button displays "Faction Survey owned" and is inactive regardless of whether the Trade Report has been run this session
 
 ### Requirement: Trade Report scope is the player's entire journal
 

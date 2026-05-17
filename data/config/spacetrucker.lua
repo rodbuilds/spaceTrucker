@@ -14,9 +14,16 @@ SpaceTruckerConfig = {}
 -- Older entries are pruned first when the cap is reached.
 SpaceTruckerConfig.journalMaxEntries = 5000
 
--- Trade Report (Quantum Trading AI) fee per open. Charged when the player
--- opens the Trade Report window at a Trading Post / Headquarters.
+-- Trade Report (Quantum Trading AI) fee per run. The Quantum AI window
+-- itself opens for free; the player clicks an explicit "Pay X cr to run
+-- Trade Report" button to spend the fee and load the report. Faction
+-- Survey acquisition is a separate, more expensive transaction.
 SpaceTruckerConfig.tradeReportFee = 50000
+
+-- Trade Report validity window, in seconds. After payment, the player
+-- can reopen the Trade Report at ANY Quantum Trading AI for free until
+-- this window expires. Prevents punishing accidental closes / map checks.
+SpaceTruckerConfig.tradeReportValiditySeconds = 3600
 
 -- Faction Survey acquisition price base.
 -- Final price = factionSurveyBasePrice * specialization
@@ -59,6 +66,9 @@ function SpaceTruckerConfig.apply()
     end
     if SpaceTruckerConfig.surveyObservationCap then
         TruckerReports.OBSERVATION_CAP = SpaceTruckerConfig.surveyObservationCap
+    end
+    if SpaceTruckerConfig.tradeReportValiditySeconds then
+        TruckerReports.TRADE_REPORT_VALIDITY = SpaceTruckerConfig.tradeReportValiditySeconds
     end
     if SpaceTruckerConfig.archetypeMaxShare then
         TruckerArchetypes.MAX_SHARE = SpaceTruckerConfig.archetypeMaxShare

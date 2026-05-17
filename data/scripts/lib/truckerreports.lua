@@ -17,11 +17,13 @@ TruckerReports = {}
 
 local SURVEYS_KEY     = "trucker_reports"   -- legacy key name kept for back-compat
 local LEGACY_WARN_KEY = "trucker_legacy_warn_sent"
+local TRADE_REPORT_PAID_AT_KEY = "trucker_trade_report_paid_at"
 
 -- Defaults; overridden by SpaceTruckerConfig.apply()
-TruckerReports.PRICE_BASE        = 1000000   -- Faction Survey base; * specialization
-TruckerReports.TRADE_REPORT_FEE  = 50000     -- per-open fee at the AI merchant
-TruckerReports.OBSERVATION_CAP   = 2000      -- max journal rows per Trade Report
+TruckerReports.PRICE_BASE              = 1000000   -- Faction Survey base; * specialization
+TruckerReports.TRADE_REPORT_FEE        = 50000     -- per-run fee at the AI merchant
+TruckerReports.OBSERVATION_CAP         = 2000      -- max journal rows per Trade Report
+TruckerReports.TRADE_REPORT_VALIDITY   = 3600      -- seconds a paid Trade Report stays valid
 
 -- Tag classification thresholds (after specialization is applied).
 local CHEAP_THRESHOLD = 0.95
@@ -147,6 +149,28 @@ function TruckerReports.priceFor(faction)
               or TruckerAssign.getStrength(faction)
               or 1.0
     return math.floor(TruckerReports.PRICE_BASE * spec)
+end
+
+-- Trade Report validity window. Once the player pays for a Trade Report,
+-- they can reopen it for free for the next TRADE_REPORT_VALIDITY seconds.
+local function nowTs()
+    return (Server and Server() and Server().unpausedRuntime) or os.time()
+end
+
+function TruckerReports.markTradeReportPaid(player)
+    if not onServer() or not player then return end
+    player:setValue(TRADE_REPORT_PAID_AT_KEY, nowTs())
+end
+
+-- Returns (isValid, secondsRemaining). secondsRemaining is 0 when expired.
+function TruckerReports.tradeReportValidity(player)
+    if not player then return false, 0 end
+    local paidAt = player:getValue(TRADE_REPORT_PAID_AT_KEY)
+    if type(paidAt) ~= "number" then return false, 0 end
+    local elapsed = nowTs() - paidAt
+    local validity = TruckerReports.TRADE_REPORT_VALIDITY or 0
+    if elapsed < 0 or elapsed >= validity then return false, 0 end
+    return true, math.floor(validity - elapsed)
 end
 
 local function readSurveys(player)

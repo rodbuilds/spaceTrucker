@@ -105,15 +105,18 @@ The mod targets co-op multiplayer (single Server, multiple Players) from day one
 - *Toast on every purchase:* Rejected — annoying after the first.
 - *Permanent badge on the menu button:* Rejected — colorblind-unsafe and unnecessary noise after first interaction.
 
-### D8. Pricing: flat per-Trade-Report, formulaic per-Faction-Survey
+### D8. Pricing: two-step explicit-consent flow at the Quantum Trading AI
 
 **Decision:**
-- Trade Report: flat `tradeReportFee` (default 50,000 cr)
-- Faction Survey: `1,000,000 × specialization` (range ~300k–1.8M)
+- Quantum Trading AI window: opens FREE. Displays a "Pay X cr to run Trade Report" button as the primary action. No content until paid.
+- Trade Report: flat `tradeReportFee` (default 50,000 cr). Charged when the player clicks the run button. Renders the per-commodity table after payment.
+- Faction Survey: `1,000,000 × specialization` (range ~300k–1.8M). Acquisition button is inactive until a Trade Report has been run this session, after which the button activates with the price in its label.
 
-**Why:** Flat per-use is the friction-free pay-per-question model the player understands. Formulaic survey price scales with intel value (a more-specialized faction has more pronounced trade opportunities and is worth more to own).
+**Why two-step:** First version auto-charged on window open and surfaced a Survey button alongside the report. Player feedback was that this felt like a double payment — by the time they saw the Acquire button, they'd already been silently charged. Splitting the flow into (a) free open → (b) explicit-consent run → (c) optional Survey acquisition makes each money moment intentional. No surprise deductions; the player always clicks to spend.
 
-**Both numbers in `data/config/spacetrucker.lua`** as `tradeReportFee` and `factionSurveyBaseMultiplier`. Operators can tune.
+**Both numbers in `data/config/spacetrucker.lua`** as `tradeReportFee` and `factionSurveyBasePrice`. Operators can set `tradeReportFee = 0` to make Trade Reports free (Survey acquisition still costs the configured amount); the run button just renders as "Run Trade Report (free)" in that case.
+
+**Validity window:** once a player pays the Trade Report fee, the report stays valid for `tradeReportValiditySeconds` (default 3600 = 1 hour). Reopening the Quantum Trading AI at any station during the validity window auto-loads the report without charging again. The window shows the remaining time. This addresses the UX problem where accidentally closing the window — or stepping out to check the galaxy map — would otherwise force a re-payment. Validity is per-player, persisted on the Player entity (`trucker_trade_report_paid_at` scalar).
 
 ### D9. "Show Home Sector on Map" — single, simple behaviour
 
