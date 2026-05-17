@@ -19,6 +19,7 @@ TruckerAssignArchetypes = {}
 local COUNT_PREFIX = "trucker_arch_count_"
 local TOTAL_KEY    = "trucker_arch_total"
 local ARCH_KEY     = "trucker_archetype"
+local STRENGTH_KEY = "trucker_strength"
 
 local function readCounts()
     if not onServer() then return {}, 0 end
@@ -54,24 +55,34 @@ function TruckerAssignArchetypes.ensureAssigned(faction)
     end
 
     local counts, total = readCounts()
-    local choice, fallback = TruckerRoll.rollFor(faction, counts, total)
+    local choice, fallback, strength = TruckerRoll.rollFor(faction, counts, total)
 
     faction:setValue(ARCH_KEY, choice)
-    -- Bias is intentionally NOT persisted: it's a fixed function of archetype.
-    -- Derive on demand via TruckerArchetypes.getBias(archetype).
+    faction:setValue(STRENGTH_KEY, strength)
 
     local newCount = (counts[choice] or 0) + 1
     writeCount(choice, newCount, total + 1)
 
     TruckerLog.info(
-        "Assigned archetype %s to faction %s (#%d)%s",
-        choice,
+        "Assigned archetype %s [strength %.2f] to faction %s (#%d)%s",
+        choice, strength,
         tostring(faction.name or "?"),
         faction.index or -1,
         fallback and " [trait fallback]" or ""
     )
 
-    return choice
+    return choice, strength
+end
+
+-- Read existing strength (or default 1.0 if missing — back-compat with
+-- pre-strength assignments). Returns nil only if faction has no archetype.
+function TruckerAssignArchetypes.getStrength(faction)
+    if not onServer() or not faction then return nil end
+    local arch = faction:getValue(ARCH_KEY)
+    if not arch or not TruckerArchetypes.isValid(arch) then return nil end
+    local s = faction:getValue(STRENGTH_KEY)
+    if type(s) ~= "number" then return 1.0 end
+    return s
 end
 
 -- Dump current distribution to the log. Useful for the §2.8 verification.

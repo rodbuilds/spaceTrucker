@@ -87,6 +87,12 @@ TruckerArchetypes.BIAS = {
 -- Distribution guardrail per spec.
 TruckerArchetypes.MAX_SHARE = 0.30
 
+-- Per-faction strength range. 1.0 = base table values; higher = more
+-- extreme bias (deeper discounts on cheap goods, larger premiums on dear);
+-- lower = subtler bias. Rolled once per faction at assignment time.
+TruckerArchetypes.STRENGTH_MIN = 0.3
+TruckerArchetypes.STRENGTH_MAX = 1.8
+
 function TruckerArchetypes.isValid(name)
     for _, n in ipairs(TruckerArchetypes.LIST) do
         if n == name then return true end
@@ -96,6 +102,20 @@ end
 
 function TruckerArchetypes.getBias(name)
     return TruckerArchetypes.BIAS[name]
+end
+
+-- effective[tag] = 1.0 + (base[tag] - 1.0) * strength
+-- A strength of 0 collapses every multiplier back to 1.0 (neutral).
+-- A strength of 1.0 returns the table as-is.
+function TruckerArchetypes.getEffectiveBias(name, strength)
+    local base = TruckerArchetypes.BIAS[name]
+    if not base then return nil end
+    if type(strength) ~= "number" then strength = 1.0 end
+    local out = {}
+    for tag, m in pairs(base) do
+        out[tag] = 1.0 + (m - 1.0) * strength
+    end
+    return out
 end
 
 return TruckerArchetypes

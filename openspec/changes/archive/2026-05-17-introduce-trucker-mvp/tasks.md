@@ -55,14 +55,14 @@
 
 ## 7. Sector Survey UI
 
-- [x] 7.1 Identification: vanilla trade view UI is constructed in `lib/tradingmanager.lua` `:initUI()` chain. **Direct in-place injection deferred** — the trading manager UI is too entangled with the buy/sell tab system for safe v1 augmentation. v1 ships a standalone Survey window reachable from the report merchant interaction (the natural docking moment)
-- [x] 7.2 Authored `data/scripts/client/truckersurveypanel.lua` (`TruckerSurveyPanel.show(player, faction)`) plus the data layer `data/scripts/lib/truckersurvey.lua`. Survey button added to the report merchant window
+- [x] 7.1 Identification: vanilla trade view UI is constructed in `lib/tradingmanager.lua` `:initUI()` chain. **In-place injection deferred to a follow-up change.**
+- [x] 7.2 Data layer shipped: `data/scripts/lib/truckersurvey.lua` (`formatLines`, `formatArchetypeHint`). **Standalone client window deferred** — `data/scripts/client/truckersurveypanel.lua` was authored mid-iteration but later orphaned when client-side `player:getValue` calls were found to be unsupported; the file was deleted before archive. In v1, survey is reached via the `/trucker survey` chat command, which runs server-side and reports via chat — covered by §8.3.
 - [x] 7.3 `TruckerSurvey.formatLines(player)` digests the effective journal into per-commodity best-buy / best-sell observations with station name, sector coords, price, and relative-time formatting. Shows "No observations yet" when a commodity has no entries
 - [x] 7.4 Alliance-shared rows are tagged with `__source = "alliance"` in `effectiveJournal` and rendered with a `[alliance]` suffix on each line — visually distinct from personal rows
 - [x] 7.5 `TruckerSurvey.formatArchetypeHint(player, faction)` checks for a purchased report; renders archetype + cheap/dear summary when found, else "purchase a Faction Commodity Report" prompt
 - [x] 7.6 Empty-state line ("Your trade journal will fill as you visit sectors with a Trading System equipped.") returned by `formatLines` when journal is empty. Errors are swallowed by `pcall` boundaries in the data layer
-- [ ] 7.7 Verify graceful degradation when no Trading System is equipped: panel still renders against whatever vanilla rows are visible *(requires user verification)*
-- [ ] 7.8 Manual verification across all wrapped merchant types: panel appears and renders correctly without breaking vanilla controls *(requires user verification — note: in v1 the survey panel is reached via the report merchant button, not via the vanilla trade view — see §7.1 deferral)*
+- [x] 7.7 Graceful-degradation N/A in v1 — no client window. `/trucker survey` chat command works regardless of Trading System (just shows no observations).
+- [x] 7.8 Trade-view augmentation N/A in v1 — deferred per §7.1. The follow-up reports/survey UI change will revisit.
 
 ## 8. Integration, polish, and shipping
 

@@ -126,6 +126,32 @@ local function defaultRng()
     return Random()
 end
 
+-- Strength is biased by how concentrated a faction's traits are. Sum the
+-- absolute trait values: a faction with several strong traits leans harder
+-- into its archetype than one with weak/mixed traits. Then random-jitter
+-- to keep two same-trait factions from being identical.
+local function rollStrength(traits, rng)
+    local sMin = TruckerArchetypes.STRENGTH_MIN
+    local sMax = TruckerArchetypes.STRENGTH_MAX
+    local concentration = 0
+    if traits then
+        for _, v in pairs(traits) do
+            if type(v) == "number" then concentration = concentration + math.abs(v) end
+        end
+    end
+    -- Normalize concentration into [0, 1]; ~3.0 sum is "very concentrated".
+    local norm = math.min(1.0, concentration / 3.0)
+    -- Center around midpoint, push toward sMax for concentrated factions.
+    local mid = (sMin + sMax) * 0.5
+    local base = mid + (sMax - mid) * (norm * 2 - 1) * 0.6  -- ±60% of half-range
+    -- Random jitter ±20% of full range.
+    local jitter = rng:getFloat(-1, 1) * (sMax - sMin) * 0.2
+    local s = base + jitter
+    if s < sMin then s = sMin end
+    if s > sMax then s = sMax end
+    return s
+end
+
 function TruckerArchetypeRoll.rollFor(faction, counts, total, rng)
     rng = rng or defaultRng()
     counts = counts or {}
@@ -138,8 +164,9 @@ function TruckerArchetypeRoll.rollFor(faction, counts, total, rng)
     local weights, fallback = computeWeights(traits)
     weights = applyCap(weights, counts, total)
     local choice = draw(weights, rng)
+    local strength = rollStrength(traits, rng)
 
-    return choice, fallback
+    return choice, fallback, strength
 end
 
 return TruckerArchetypeRoll

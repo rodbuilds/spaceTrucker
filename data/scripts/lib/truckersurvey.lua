@@ -92,12 +92,15 @@ function TruckerSurvey.formatArchetypeHint(player, faction)
             "[%s] Faction archetype unknown — purchase a Faction Commodity Report to learn.",
             tostring(faction.name))}
     end
-    local cheap = #report.biasCheap > 0 and table.concat(report.biasCheap, ", ") or "(none)"
-    local dear  = #report.biasDear  > 0 and table.concat(report.biasDear,  ", ") or "(none)"
+    local sellsCheap, buysHigh = TruckerReports.summarizeBias(
+        report.archetype, report.strength or 1.0)
+    local cheap = #sellsCheap > 0 and table.concat(sellsCheap, ", ") or "(none)"
+    local dear  = #buysHigh   > 0 and table.concat(buysHigh,   ", ") or "(none)"
     local lines = {
-        string.format("[%s — %s]", tostring(faction.name), tostring(report.archetype)),
-        string.format("  Tends CHEAP: %s", cheap),
-        string.format("  Tends DEAR : %s", dear),
+        string.format("[%s -- %s (strength %.2f)]",
+            tostring(faction.name), tostring(report.archetype), report.strength or 1.0),
+        string.format("  Sells cheap: %s", cheap),
+        string.format("  Buys high  : %s", dear),
     }
     local atWar = TruckerReports.atWarWith(faction)
     if #atWar > 0 then

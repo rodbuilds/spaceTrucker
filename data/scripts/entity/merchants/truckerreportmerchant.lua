@@ -31,16 +31,18 @@ function TruckerReportMerchant.serverGetReportInfo(playerIndex)
     if not onServer() then return end
     local TruckerReports    = include("truckerreports")
     local TruckerArchetypes = include("truckerarchetypes")
+    local TruckerAssign     = include("truckerassignarchetypes")
     local subject = Faction()
     if not subject then return end
     local arch = subject:getValue("trucker_archetype") or ""
     if not TruckerArchetypes.isValid(arch) then arch = "" end
-    local cheap, dear = TruckerReports.summarizeBias(arch)
+    local strength = TruckerAssign.getStrength(subject) or 1.0
+    local sellsCheap, buysHigh = TruckerReports.summarizeBias(arch, strength)
     local price = TruckerReports.priceFor(subject)
     invokeClientFunction(Player(playerIndex), "clientReceiveReportInfo",
-        tostring(subject.name or "?"), arch,
-        table.concat(cheap or {}, ","),
-        table.concat(dear  or {}, ","),
+        tostring(subject.name or "?"), arch, strength,
+        table.concat(sellsCheap or {}, ","),
+        table.concat(buysHigh  or {}, ","),
         price)
 end
 callable(TruckerReportMerchant, "serverGetReportInfo")
@@ -125,18 +127,23 @@ function TruckerReportMerchant.onShowWindow()
     invokeServerFunction("serverGetReportInfo", Player().index)
 end
 
-function TruckerReportMerchant.clientReceiveReportInfo(factionName, arch, cheapCsv, dearCsv, price)
+function TruckerReportMerchant.clientReceiveReportInfo(factionName, arch, strength, cheapCsv, dearCsv, price)
     if not onClient() then return end
     if not infoLabel or not priceLabel then return end
     local cheap = (cheapCsv == "" or cheapCsv == nil) and "(none)" or cheapCsv
     local dear  = (dearCsv  == "" or dearCsv  == nil) and "(none)" or dearCsv
     local archDisplay = (arch == "" or arch == nil) and "Unassigned" or arch
+    local strengthDisplay = string.format("%.2f", tonumber(strength) or 1.0)
     infoLabel.caption = string.format(
-        "Subject:  %s\nArchetype:  %s\n\nTends CHEAP:  %s\nTends DEAR:  %s\n\n" ..
-        "A purchased report is a frozen snapshot of this faction archetype " ..
-        "plus your current observations within their space.",
-        tostring(factionName), tostring(archDisplay),
-        tostring(cheap), tostring(dear))
+        "Subject:    %s\nArchetype:  %s   (strength %s)\n\n" ..
+        "Sells cheap:  %s\nBuys high:    %s\n\n" ..
+        "Purchasing this report unlocks live analytics for %s in your codex: " ..
+        "expected price bands across every commodity, plus aggregated stats " ..
+        "and best-station picks from your own journal. Use /trucker reports " ..
+        "to view after purchase.",
+        tostring(factionName), tostring(archDisplay), strengthDisplay,
+        tostring(cheap), tostring(dear),
+        tostring(factionName))
     priceLabel.caption = string.format("Price: %d cr", price or 0)
 end
 
