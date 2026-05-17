@@ -6,6 +6,7 @@ package.path = package.path .. ";data/scripts/lib/?.lua"
 local TruckerArchetypes = include("truckerarchetypes")
 local TruckerJournal    = include("truckerjournal")
 local TruckerLog        = include("truckerlog")
+local TruckerSerialize  = include("truckerserialize")
 
 TruckerReports = {}
 
@@ -29,13 +30,10 @@ function TruckerReports.summarizeBias(archetype)
     return cheap, dear
 end
 
--- Compute a report's price in credits for a given subject faction.
+-- Compute a report's price in credits. Flat for v1; Faction.power isn't
+-- exposed in this Avorion build, so we drop the power-scaling formula.
 function TruckerReports.priceFor(faction)
-    local power = 0
-    if faction and faction.power then power = faction.power end
-    if type(power) ~= "number" then power = 0 end
-    return math.max(TruckerReports.PRICE_BASE,
-                    TruckerReports.PRICE_BASE + math.floor(power * TruckerReports.PRICE_PER_POWER))
+    return TruckerReports.PRICE_BASE
 end
 
 -- Build the report snapshot for a buyer / subject faction. Pulls the
@@ -55,13 +53,14 @@ end
 local function readReports(player)
     if not player then return {} end
     local raw = player:getValue(REPORTS_KEY)
-    if type(raw) ~= "table" then return {} end
-    return raw
+    if type(raw) ~= "string" then return {} end
+    local decoded = TruckerSerialize.decode(raw)
+    return (type(decoded) == "table") and decoded or {}
 end
 
 local function writeReports(player, reports)
     if not player then return end
-    player:setValue(REPORTS_KEY, reports)
+    player:setValue(REPORTS_KEY, TruckerSerialize.encode(reports))
 end
 
 -- Persist a freshly purchased report. Returns the entry that was stored.

@@ -1,10 +1,6 @@
--- Helper that wraps a TradingAPI-derived namespace's price functions with
--- the archetype bias. Each per-merchant overlay file calls this once.
---
--- Why this lives in lib/: every merchant overlay shares the exact same
--- wrapping logic, so it's factored out. The actual `getBuyPrice` /
--- `getSellPrice` overrides happen in the entity-script files where the
--- namespace is defined and `Faction()` returns the entity's owner.
+-- Helper that wraps a TradingAPI shop table price functions with the
+-- archetype bias AND stashes the archetype on the station entity itself
+-- (Entity:setValue) so client-side price reads can apply the same bias.
 package.path = package.path .. ";data/scripts/lib/?.lua"
 
 local TruckerPriceHook = include("truckerpricehook")
@@ -12,8 +8,28 @@ local TruckerLog       = include("truckerlog")
 
 TruckerPriceWrap = {}
 
--- Wrap the price functions on `namespace` (e.g. TradingPost, Factory).
--- Caller supplies the namespace table. Idempotent: no-op if already wrapped.
+local STATION_ARCH_KEY = "trucker_station_arch"
+
+-- Server-side: set the archetype on the entity so clients can read it.
+local function markEntityArchetype()
+    if not onServer() then return end
+    local entity = Entity()
+    if not entity then return end
+    local faction = Faction()
+    if not faction then return end
+    local TruckerExcluded = include("truckerexcluded")
+    local TruckerAssign   = include("truckerassignarchetypes")
+    if TruckerExcluded.isExcluded(faction) then return end
+    local arch = TruckerAssign.ensureAssigned(faction)
+    if arch then
+        local ok, current = pcall(function() return entity:getValue(STATION_ARCH_KEY) end)
+        if not ok or current ~= arch then
+            pcall(function() entity:setValue(STATION_ARCH_KEY, arch) end)
+        end
+    end
+end
+
+-- Wrap the price functions and initialize on `namespace`. Idempotent.
 function TruckerPriceWrap.install(namespace, namespaceName)
     if not namespace then return end
     if namespace.__truckerWrapped then return end
@@ -29,25 +45,36 @@ function TruckerPriceWrap.install(namespace, namespaceName)
     namespace.getBuyPrice = function(goodName, sellingFactionIndex)
         local price, basePrice, supply, relation, factor =
             original_getBuyPrice(goodName, sellingFactionIndex)
-        local faction = Faction()
-        local trader  = namespace.trader
-        local good    = trader and trader:getBoughtGoodByName and trader:getBoughtGoodByName(goodName)
-        local biased  = TruckerPriceHook.applyBuyBias(faction, good, price)
+        local trader = namespace.trader
+        local good   = trader and trader.getBoughtGoodByName and trader:getBoughtGoodByName(goodName)
+        local biased = TruckerPriceHook.applyBuyBias(good, price)
         return biased, basePrice, supply, relation, factor
     end
 
     namespace.getSellPrice = function(goodName, buyingFactionIndex)
         local price, basePrice, supply, relation, factor =
             original_getSellPrice(goodName, buyingFactionIndex)
-        local faction = Faction()
-        local trader  = namespace.trader
-        local good    = trader and trader:getSoldGoodByName and trader:getSoldGoodByName(goodName)
-        local biased  = TruckerPriceHook.applySellBias(faction, good, price)
+        local trader = namespace.trader
+        local good   = trader and trader.getSoldGoodByName and trader:getSoldGoodByName(goodName)
+        local biased = TruckerPriceHook.applySellBias(good, price)
         return biased, basePrice, supply, relation, factor
+    end
+
+    -- Wrap initialize to mark the entity with its faction archetype.
+    local original_initialize = namespace.initialize
+    namespace.initialize = function(...)
+        if original_initialize then original_initialize(...) end
+        markEntityArchetype()
     end
 
     namespace.__truckerWrapped = true
     TruckerLog.info("Wrapped price functions on %s", tostring(namespaceName))
+end
+
+-- For non-namespaced merchant scripts (like headquarters.lua) that use
+-- the global `initialize`. Call from the overlay's initialize directly.
+function TruckerPriceWrap.markCurrentEntity()
+    markEntityArchetype()
 end
 
 return TruckerPriceWrap

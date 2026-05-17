@@ -5,6 +5,8 @@ package.path = package.path .. ";data/scripts/lib/?.lua"
 if onServer() then
     local sector = Sector()
     if sector then
+        local x, y = sector:getCoordinates()
+        print(string.format("[SpaceTrucker] sector/init.lua firing for (%d,%d)", x, y))
         sector:addScriptOnce("data/scripts/sector/truckerobservationhook.lua")
     end
 end

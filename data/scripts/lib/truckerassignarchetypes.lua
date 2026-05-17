@@ -16,26 +16,25 @@ local TruckerLog        = include("truckerlog")
 
 TruckerAssignArchetypes = {}
 
-local COUNTS_KEY = "trucker_arch_counts"
-local TOTAL_KEY  = "trucker_arch_total"
-local ARCH_KEY   = "trucker_archetype"
-local BIAS_KEY   = "trucker_bias"
+local COUNT_PREFIX = "trucker_arch_count_"
+local TOTAL_KEY    = "trucker_arch_total"
+local ARCH_KEY     = "trucker_archetype"
 
 local function readCounts()
     if not onServer() then return {}, 0 end
-    local raw = Server():getValue(COUNTS_KEY)
     local counts = {}
-    if type(raw) == "table" then
-        for k, v in pairs(raw) do counts[k] = v end
+    for _, name in ipairs(TruckerArchetypes.LIST) do
+        local n = Server():getValue(COUNT_PREFIX .. name)
+        counts[name] = (type(n) == "number") and n or 0
     end
     local total = Server():getValue(TOTAL_KEY) or 0
     if type(total) ~= "number" then total = 0 end
     return counts, total
 end
 
-local function writeCounts(counts, total)
+local function writeCount(archetype, n, total)
     if not onServer() then return end
-    Server():setValue(COUNTS_KEY, counts)
+    Server():setValue(COUNT_PREFIX .. archetype, n)
     Server():setValue(TOTAL_KEY, total)
 end
 
@@ -55,13 +54,14 @@ function TruckerAssignArchetypes.ensureAssigned(faction)
     end
 
     local counts, total = readCounts()
-    local choice, fallback = TruckerRoll.rollFor(faction, counts, total, random())
+    local choice, fallback = TruckerRoll.rollFor(faction, counts, total)
 
     faction:setValue(ARCH_KEY, choice)
-    faction:setValue(BIAS_KEY, TruckerArchetypes.getBias(choice))
+    -- Bias is intentionally NOT persisted: it's a fixed function of archetype.
+    -- Derive on demand via TruckerArchetypes.getBias(archetype).
 
-    counts[choice] = (counts[choice] or 0) + 1
-    writeCounts(counts, total + 1)
+    local newCount = (counts[choice] or 0) + 1
+    writeCount(choice, newCount, total + 1)
 
     TruckerLog.info(
         "Assigned archetype %s to faction %s (#%d)%s",

@@ -116,8 +116,18 @@ end
 -- Roll one archetype for `faction`, respecting `counts` (running tally) and
 -- `total` (running assignment count). Returns the chosen archetype name and
 -- a boolean indicating whether the trait fallback fired.
+local function defaultRng()
+    -- `random()` is only defined in galaxy-generation contexts. Fall back
+    -- to the Random constructor (always available) otherwise.
+    if type(random) == "function" then
+        local ok, r = pcall(random)
+        if ok and r then return r end
+    end
+    return Random()
+end
+
 function TruckerArchetypeRoll.rollFor(faction, counts, total, rng)
-    rng = rng or random()
+    rng = rng or defaultRng()
     counts = counts or {}
     total = total or 0
 

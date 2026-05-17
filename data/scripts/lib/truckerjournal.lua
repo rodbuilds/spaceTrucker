@@ -4,7 +4,8 @@
 -- installed on the player's ship in a loaded sector.
 package.path = package.path .. ";data/scripts/lib/?.lua"
 
-local TruckerLog = include("truckerlog")
+local TruckerLog       = include("truckerlog")
+local TruckerSerialize = include("truckerserialize")
 
 TruckerJournal = {}
 
@@ -34,17 +35,11 @@ end
 -- Returns true if `craft` (an Entity) has a Trading System installed.
 function TruckerJournal.hasTradingSystem(craft)
     if not craft then return false end
-    -- Try the cleanest API first.
-    local ok, scripts = pcall(function() return {craft:getScripts()} end)
-    if ok and scripts then
+    local ok, scripts = pcall(function() return craft:getScripts() end)
+    if ok and type(scripts) == "table" then
         for _, s in pairs(scripts) do
             if isTradingSystem(s) then return true end
         end
-    end
-    -- Fallback: probe via invokeFunction (returns nonzero if missing).
-    for _, candidate in ipairs(TRADING_SYSTEM_SCRIPTS) do
-        local probeOk = pcall(function() return craft:invokeFunction(candidate, "getUpdateInterval") end)
-        if probeOk then return true end
     end
     return false
 end
@@ -54,8 +49,9 @@ end
 local function readJournal(entity, key)
     if not entity then return {} end
     local raw = entity:getValue(key)
-    if type(raw) ~= "table" then return {} end
-    return raw
+    if type(raw) ~= "string" then return {} end
+    local decoded = TruckerSerialize.decode(raw)
+    return (type(decoded) == "table") and decoded or {}
 end
 
 local function writeJournal(entity, key, journal)
@@ -65,7 +61,7 @@ local function writeJournal(entity, key, journal)
         local excess = #journal - TruckerJournal.MAX_ENTRIES
         for i = 1, excess do table.remove(journal, 1) end
     end
-    entity:setValue(key, journal)
+    entity:setValue(key, TruckerSerialize.encode(journal))
 end
 
 local function append(entity, key, observations)
@@ -96,28 +92,30 @@ local function buildObservation(station, factionIdx, sectorX, sectorY, action, g
 end
 
 -- Pull buy/sell goods from a station and produce observation rows.
--- Returns the array of observation tables.
-local function harvestStation(station, factionIdx, sectorX, sectorY, ts)
+-- Uses vanilla's TradingUtility (lib/tradingutility.lua), which iterates
+-- the tradeable merchant scripts and invokes their getBoughtGoods /
+-- getSoldGoods APIs. Returns the array of observation tables.
+local function harvestStation(station, factionIdx, sectorX, sectorY, ts, viewerFaction)
     local out = {}
-    -- Try the documented Station/Entity API: getBuyableGoods, getSellableGoods.
-    local okBuy, buyGoods = pcall(function() return {station:getBuyableGoods()} end)
-    if okBuy and buyGoods then
-        for _, good in pairs(buyGoods) do
-            -- Station "buys" from the player; that's the player's "sell" action.
-            local price = good.price or 0
-            local stock = good.amount or 0
-            local maxS  = good.maxStock or stock
-            table.insert(out, buildObservation(station, factionIdx, sectorX, sectorY, "sell", good, price, stock, maxS, ts))
-        end
+    local TradingUtility = include("tradingutility")
+
+    local sellable, buyable = {}, {}
+    local ok = pcall(function()
+        TradingUtility.getBuyableAndSellableGoods(station, sellable, buyable, viewerFaction)
+    end)
+    if not ok then return out end
+
+    -- "sellable" = goods PLAYER can sell to station (station buys) → action "sell"
+    for _, row in pairs(sellable) do
+        table.insert(out, buildObservation(
+            station, factionIdx, sectorX, sectorY, "sell",
+            row.good, row.price, row.stock, row.maxStock, ts))
     end
-    local okSell, sellGoods = pcall(function() return {station:getSellableGoods()} end)
-    if okSell and sellGoods then
-        for _, good in pairs(sellGoods) do
-            local price = good.price or 0
-            local stock = good.amount or 0
-            local maxS  = good.maxStock or stock
-            table.insert(out, buildObservation(station, factionIdx, sectorX, sectorY, "buy", good, price, stock, maxS, ts))
-        end
+    -- "buyable" = goods PLAYER can buy from station (station sells) → action "buy"
+    for _, row in pairs(buyable) do
+        table.insert(out, buildObservation(
+            station, factionIdx, sectorX, sectorY, "buy",
+            row.good, row.price, row.stock, row.maxStock, ts))
     end
     return out
 end
@@ -133,7 +131,7 @@ function TruckerJournal.recordObservations(player, sector)
     -- Find this player's controlled craft in the sector for the upgrade gate.
     local playerCraft
     for _, e in pairs({sector:getEntitiesByFaction(player.index)}) do
-        if e and e.isShip and e:getPilotIndices and ({e:getPilotIndices()})[1] == player.index then
+        if e and e.isShip and e.getPilotIndices and ({e:getPilotIndices()})[1] == player.index then
             playerCraft = e
             break
         end
@@ -144,15 +142,27 @@ function TruckerJournal.recordObservations(player, sector)
             if e and e.isShip then playerCraft = e; break end
         end
     end
-    if not TruckerJournal.hasTradingSystem(playerCraft) then return end
+    if not playerCraft then
+        TruckerLog.info("recordObservations: no craft for player %s in sector (%d,%d)",
+            tostring(player.name), x, y)
+        return
+    end
+    if not TruckerJournal.hasTradingSystem(playerCraft) then
+        TruckerLog.info("recordObservations: player %s has no Trading System on craft '%s'",
+            tostring(player.name), tostring(playerCraft.name))
+        return
+    end
 
     local stations = {sector:getEntitiesByType(EntityType.Station)}
+    TruckerLog.info("recordObservations: player=%s sector=(%d,%d) stations=%d",
+        tostring(player.name), x, y, #stations)
     if #stations == 0 then return end
 
+    local viewerFaction = Faction(player.index)
     local observations = {}
     for _, station in pairs(stations) do
         local factionIdx = station.factionIndex
-        local rows = harvestStation(station, factionIdx, x, y, ts)
+        local rows = harvestStation(station, factionIdx, x, y, ts, viewerFaction)
         for _, r in ipairs(rows) do table.insert(observations, r) end
     end
 
