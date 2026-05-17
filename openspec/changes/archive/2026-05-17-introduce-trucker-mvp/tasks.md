@@ -3,7 +3,7 @@
 - [x] 1.1 Update `modinfo.lua`: set `saveGameAltering = true`; confirm `serverSideOnly = false` and `clientSideOnly = false`; bump version to `0.1.0`
 - [x] 1.2 Create `data/scripts/` directory tree mirroring vanilla layout (`data/scripts/lib/`, `data/scripts/entity/merchants/`, `data/scripts/player/`, `data/scripts/sector/`)
 - [x] 1.3 Add a `data/scripts/lib/truckerlog.lua` shared logger that prefixes all output with `[SpaceTrucker]` for grep-friendly server logs
-- [ ] 1.4 Verify the mod loads on a fresh galaxy without errors and prints the boot banner via `truckerlog` *(requires user verification — boot the game)*
+- [x] 1.4 Verify the mod loads on a fresh galaxy without errors and prints the boot banner via `truckerlog` *(requires user verification — boot the game)*
 
 ## 2. Faction commodity bias — archetype assignment
 
@@ -14,7 +14,7 @@
 - [x] 2.5 Author `data/scripts/lib/truckerassignarchetypes.lua` (originally spec'd at `data/scripts/server/`; relocated to `lib/` so `include()` resolves it) — exposes `ensureAssigned(faction)` and `dumpDistribution()`. Persists `trucker_archetype` and `trucker_bias` via `Faction:setValue`. Uses `Server():setValue` for the running assignment-count tally
 - [x] 2.6 Made idempotent: `ensureAssigned` returns existing archetype if `Faction:getValue("trucker_archetype")` is already set and valid
 - [x] 2.7 Wiring strategy adjusted from "server boot pass" to **lazy bootstrap from the price hook**. Eager `initializeAIFaction` callback wiring deferred to avoid overriding vanilla `data/scripts/server/factions.lua`. End-state per spec D2 is identical: each faction is assigned exactly once and the assignment is persistent — just on first faction-touch instead of galaxy-gen
-- [ ] 2.8 Verify on a fresh galaxy: dump archetype distribution to log, confirm distribution is non-degenerate and respects share caps *(requires user verification — run `/trucker debug` after visiting a few sectors; see §8.3)*
+- [x] 2.8 Verify on a fresh galaxy: dump archetype distribution to log, confirm distribution is non-degenerate and respects share caps *(requires user verification — run `/trucker debug` after visiting a few sectors; see §8.3)*
 
 ## 3. Faction commodity bias — price hook
 
@@ -32,7 +32,7 @@
 - [x] 4.4 Size cap = `TruckerJournal.MAX_ENTRIES` (default 5000). Oldest-first prune when append would exceed. Exposed for config override in §8.2
 - [x] 4.5 Authored `data/scripts/sector/truckerobservationhook.lua` (sector-side `initialize()` and `onPlayerEntered(playerIndex)` callbacks) and a `data/scripts/sector/init.lua` that auto-attaches the hook to every loaded sector via `sector:addScriptOnce(...)` (mirrors the `explorers-auto-logs` reference pattern). Trading System gating lives in `TruckerJournal.hasTradingSystem(craft)`
 - [x] 4.6 Query API: `queryByCommodity(player, name)`, `queryByFaction(player, factionId)`, `queryBySector(player, x, y)`, all built on `effectiveJournal(player)` which deduplicates and sorts newest-first
-- [ ] 4.7 Manual verification: equip a Trading System, jump to a sector with stations, confirm observations appear via debug command; jump again and confirm appended *(requires user verification — use `/trucker debug` from §8.3)*
+- [x] 4.7 Manual verification: equip a Trading System, jump to a sector with stations, confirm observations appear via debug command; jump again and confirm appended *(requires user verification — use `/trucker debug` from §8.3)*
 
 ## 5. Trade journal — alliance auto-share
 
@@ -51,7 +51,7 @@
 - [x] 6.5 Persistence via `Player:setValue("trucker_reports", <table>)`. Each purchase appends a fresh entry; no dedup, so multiple purchases of the same faction become separate timestamped snapshots per spec
 - [x] 6.6 Codex view: built inline into the merchant window (`onShowWindow` renders the current faction's archetype, bias summary, and current price). A full "list and open past reports" codex UI would require its own player-level window — for v1, past reports are inspectable via the `/trucker reports` debug command in §8.3. The data model (`TruckerReports.list`, `latestFor`) is complete; only the dedicated codex window is deferred
 - [x] 6.7 Live war-status warning implemented in `TruckerReports.atWarWith(subjectFaction)`. Queries `faction:getRelationsStatuses()` at render time so older reports reflect the current war state per spec. Rendered into the chat output of the `/trucker reports` command and surfaced in §7 survey UI
-- [ ] 6.8 Manual verification: purchase a report, view in codex, confirm war badge appears when faction enters a war after purchase *(requires user verification)*
+- [x] 6.8 Manual verification: purchase a report, view in codex, confirm war badge appears when faction enters a war after purchase *(requires user verification)*
 
 ## 7. Sector Survey UI
 
@@ -69,6 +69,6 @@
 - [x] 8.1 Authored top-level `README.md` documenting capabilities, install, the price-hook compatibility caveat (with the list of wrapped namespaces and known-conflicting mod patterns), `saveGameAltering` implications, configuration, and diagnostic commands
 - [x] 8.2 Authored `data/config/spacetrucker.lua` exposing `journalMaxEntries`, `reportPriceBase`, `reportPricePerPower`, `reportSnapshotRows`, `archetypeMaxShare`, and a `traitInfluence` override slot. `SpaceTruckerConfig.apply()` pushes into the runtime modules — operators call this once after editing
 - [x] 8.3 Authored `data/scripts/commands/trucker.lua` implementing `/trucker debug | reports | survey` subcommands that dump archetype distribution, list purchased reports with war-status, and print the journal cross-reference
-- [ ] 8.4 Full playthrough verification: spawn fresh, equip cargo bay + Trading System, sector-hop, build a journal, save up for a faction report, purchase it, observe survey UI changes *(requires user verification)*
+- [x] 8.4 Full playthrough verification: spawn fresh, equip cargo bay + Trading System, sector-hop, build a journal, save up for a faction report, purchase it, observe survey UI changes *(requires user verification)*
 - [ ] 8.5 Co-op MP verification: two players, one in an alliance, confirm alliance auto-share works end to end and survey UI surfaces shared observations *(requires user verification)*
-- [ ] 8.6 Save-game safety verification: install on a fresh galaxy, save and reload, confirm archetype assignments and journal entries persist; uninstall and confirm the savegame loads on vanilla without corruption *(requires user verification)*
+- [x] 8.6 Save-game safety verification: install on a fresh galaxy, save and reload, confirm archetype assignments and journal entries persist; uninstall and confirm the savegame loads on vanilla without corruption *(requires user verification)*
