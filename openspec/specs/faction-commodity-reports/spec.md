@@ -2,86 +2,85 @@
 
 ## Purpose
 
-Provide an in-game merchant that sells per-faction commodity intelligence reports — revealing the faction's archetype, bias summary, and a snapshot of the buyer's journal observations for that faction — and persist purchased reports as codex entries on the buying player.
+Provide an in-game pathway for players to acquire per-faction Faction Surveys — minimal, live-rendered intel artifacts identifying a faction's Economy and Specialization — through the Quantum Trading AI merchant at Trading Posts and Faction Headquarters, and persist acquired Surveys as personal entries on the buying player.
 
 ## Requirements
 
-### Requirement: Faction Commodity Reports merchant availability
+### Requirement: Faction Survey purchase available at Trading Posts and Headquarters
 
-The system SHALL provide a new merchant type, the Faction Commodity Reports merchant, available at Trading Posts and Faction Headquarters in archetype-assigned faction space. The merchant SHALL offer reports for the owning faction of the station, and SHALL NOT offer reports for excluded factions (pirates, smugglers, Xsotan).
+The system SHALL make Faction Survey acquisition available at every Trading Post and Faction Headquarters whose owning faction has an assigned Economy. The acquisition action SHALL only offer a Survey for the station's OWN faction; players SHALL NOT be able to acquire a Survey for any other faction at this station. Acquisition is presented as a button inside the Quantum Trading AI Trade Report window (see quantum-trade-ai capability), not as a standalone merchant interaction.
 
-#### Scenario: Trading Post in archetype-assigned faction
-- **WHEN** a player docks at a Trading Post owned by an archetype-assigned faction
-- **THEN** the Faction Commodity Reports merchant interaction SHALL be available, offering at least the report for that station's owning faction
+#### Scenario: Trading Post in Economy-assigned faction
+- **WHEN** a player opens the Quantum Trading AI Trade Report at a Trading Post owned by an Economy-assigned faction
+- **THEN** an "Acquire Faction Survey — N cr" action SHALL be present, where the subject faction is the station's owning faction
 
-#### Scenario: Faction Headquarters in archetype-assigned faction
-- **WHEN** a player docks at a Faction Headquarters owned by an archetype-assigned faction
-- **THEN** the Faction Commodity Reports merchant interaction SHALL be available
+#### Scenario: Faction Headquarters in Economy-assigned faction
+- **WHEN** a player opens the Quantum Trading AI Trade Report at a Faction Headquarters owned by an Economy-assigned faction
+- **THEN** the same "Acquire Faction Survey" action SHALL be present for that station's owning faction
 
 #### Scenario: Station owned by excluded faction
-- **WHEN** a player docks at a station whose owning faction has no archetype assignment (pirate, smuggler, etc.)
-- **THEN** the Faction Commodity Reports merchant SHALL NOT be available
+- **WHEN** a player is at a station whose owning faction has no Economy assignment (pirate, smuggler, etc.)
+- **THEN** the Quantum Trading AI merchant SHALL NOT be available, and therefore no Faction Survey acquisition path SHALL exist at that station
 
-### Requirement: Report purchase grants codex artifact
+### Requirement: Faction Survey purchase grants codex artifact
 
-Purchasing a faction commodity report SHALL deduct the configured credit cost from the buyer and SHALL append a new report entry to `Player:setValue("trucker_reports", <table>)`. The entry SHALL include: subject faction id, archetype identity, the resolved bias table summary, an aggregated snapshot of journal observations for that faction's space drawn from the buyer's effective journal (personal + alliance-shared), and a galactic-time purchase timestamp. The snapshot SHALL be a copy at purchase time and SHALL NOT update afterward.
+Acquiring a Faction Survey SHALL deduct the configured credit cost from the buyer and SHALL append a new entry to the player's stored Survey collection. The entry SHALL contain the minimum identifying information required to live-render the Survey: subject faction id, faction display name, economy identifier, specialization scalar, and acquisition timestamp. The entry SHALL NOT cache any commodity table, bias summary, journal snapshot, or other derived data — all of which are live-rendered at view time (see trader-codex capability).
 
-#### Scenario: Successful purchase
-- **WHEN** a player purchases a report from the merchant and has sufficient credits
-- **THEN** the credits are deducted, a new entry is appended to the player's `trucker_reports`, and the entry includes the subject faction id, archetype name, bias summary, observation snapshot, and timestamp
+#### Scenario: Successful acquisition
+- **WHEN** a player acquires a Faction Survey with sufficient credits
+- **THEN** the credits SHALL be deducted, and a new minimal entry (faction id, name, economy, specialization, timestamp) SHALL be appended to the player's stored Survey collection
 
 #### Scenario: Insufficient credits
-- **WHEN** a player attempts to purchase a report without sufficient credits
-- **THEN** the system SHALL deny the purchase with an informative message and SHALL NOT modify `trucker_reports`
+- **WHEN** a player attempts to acquire a Faction Survey without sufficient credits
+- **THEN** the system SHALL refuse the purchase with an informative message and SHALL NOT modify the player's Survey collection
 
-#### Scenario: Snapshot is frozen
-- **WHEN** a player views a previously purchased report after time has passed and new observations have entered the journal
-- **THEN** the report SHALL display the observations as of its original purchase timestamp; the report SHALL NOT include observations recorded after purchase
+#### Scenario: Re-acquiring the same faction
+- **WHEN** a player acquires a Faction Survey for a faction they already have a Survey for
+- **THEN** the prior entry for that faction SHALL be replaced by the new acquisition (no duplicate entries) and the acquisition timestamp SHALL update to the current time; the credit cost SHALL still be charged
 
-#### Scenario: Multiple purchases of the same faction's report
-- **WHEN** a player purchases a report for the same faction more than once
-- **THEN** each purchase SHALL produce a separate codex entry with its own timestamp and snapshot, allowing side-by-side comparison
+### Requirement: Faction Survey pricing scales by Specialization
 
-### Requirement: Report pricing scales by faction characteristics
+The credit cost of acquiring a Faction Survey SHALL be computed as `factionSurveyBasePrice × specialization`, where `factionSurveyBasePrice` is a configuration value (default 1,000,000 cr) and `specialization` is the per-faction scalar persisted by faction-commodity-bias. Higher Specialization SHALL produce a higher Survey price. The system SHALL NOT charge a flat per-faction price.
 
-The credit cost of a faction commodity report SHALL scale by characteristics of the subject faction. The minimum implementation SHALL include scaling by faction power (larger factions cost more) and SHALL NOT charge a uniform flat price. Operators SHALL be able to configure the scaling formula coefficients.
+#### Scenario: Higher Specialization costs more
+- **WHEN** the price is computed for two factions of the same Economy but different Specializations (e.g. 0.5 vs 1.5)
+- **THEN** the higher-Specialization faction's Survey SHALL cost proportionally more
 
-#### Scenario: Larger faction costs more
-- **WHEN** the merchant prices a report for a high-power faction versus a low-power faction
-- **THEN** the high-power faction's report SHALL be more expensive
+#### Scenario: Operator tunes base price
+- **WHEN** the server operator changes `factionSurveyBasePrice` in `data/config/spacetrucker.lua`
+- **THEN** subsequent acquisition prompts SHALL use the new base value
 
-#### Scenario: Operator tunes pricing
-- **WHEN** the server operator changes the configured pricing coefficients
-- **THEN** subsequent merchant interactions SHALL price reports using the new coefficients
+#### Scenario: Edge specialization at bounds
+- **WHEN** Specialization is at the minimum (e.g. 0.3) or maximum (e.g. 1.8) of its defined range
+- **THEN** the price SHALL compute correctly for those endpoints without error
 
-### Requirement: Codex display of archetype and bias summary
+### Requirement: Stored Faction Survey content is minimal and live-rendered
 
-The codex view of a purchased report SHALL display the subject faction name, the assigned archetype, a human-readable summary of which commodity categories tend cheap and which tend dear under the archetype's bias table, and the original purchase timestamp.
+The Faction Survey stored on the player SHALL contain only the identifying information necessary to reconstruct its display via live computation. The system SHALL NOT persist commodity tables, sells-cheap/buys-high tag lists, journal snapshots, or war-status data. All such display content SHALL be derived at render time from the live state of the player's journal, the faction's current Economy, and the faction's current Specialization.
 
-#### Scenario: Open report in codex
-- **WHEN** a player opens a purchased report in the codex
-- **THEN** the rendered view SHALL include the faction name, archetype name, "Tends CHEAP" and "Tends DEAR" commodity-category lists, the snapshot's best-buy and best-sell observations, and a "Purchased <timestamp>" line
+#### Scenario: Minimal stored fields
+- **WHEN** the server reads a stored Faction Survey entry
+- **THEN** the entry SHALL include subject faction id, faction name, economy, specialization, acquisition timestamp — and SHALL NOT include cached commodity tables, snapshots, or summary tag lists
 
-### Requirement: Live war-status warning badge
+#### Scenario: Faction state evolves after acquisition
+- **WHEN** a player views a previously-acquired Faction Survey after the faction's Economy or Specialization has changed via a future game mechanic
+- **THEN** the rendered view SHALL reflect the current Economy and Specialization, not the values at acquisition time
 
-When a report is rendered in the codex, the system SHALL query live faction relations for the report's subject faction. If the subject faction is currently at war with one or more factions, the rendered view SHALL append a "⚠ AT WAR with X" warning badge naming the at-war counterpart(s). The warning SHALL be derived live at render time and SHALL NOT be cached in the report data.
+#### Scenario: Legacy MVP entries are silently skipped
+- **WHEN** the server reads a stored Survey entry persisted under the MVP schema (missing the `economy` field)
+- **THEN** the system SHALL skip that entry without rendering it; a single one-time warning per galaxy SHALL be logged. Players SHALL create a new galaxy to reset; no auto-upgrade SHALL be performed.
 
-#### Scenario: Faction goes to war after report purchase
-- **WHEN** a player views a previously-purchased report whose subject faction is now at war (war declared after purchase)
-- **THEN** the rendered view SHALL show the war warning badge, even though the snapshot is older than the war
+<!--
+Removed in add-quantum-trade-codex: "Live war-status warning badge".
+Reason: `Faction:getRelationsStatuses` is not exposed in this Avorion build; a per-render scan via
+`Galaxy():getFactionRelationStatus` against every other faction is prohibitively expensive. The
+requirement is dropped honestly until a viable API surface exists.
+-->
 
-#### Scenario: Faction not at war
-- **WHEN** a player views a report whose subject faction is currently at peace
-- **THEN** no war warning badge SHALL be rendered
+### Requirement: Faction Surveys are non-transferable
 
-#### Scenario: Faction at war with multiple counterparts
-- **WHEN** the subject faction is at war with two or more other factions
-- **THEN** the rendered warning SHALL list all current at-war counterparts
+A Faction Survey SHALL exist only as a personal entry on the acquiring player. Surveys SHALL NOT be giftable, tradeable, or visible to other players or alliance members. Each player SHALL acquire their own Survey for any faction whose intel they wish to view.
 
-### Requirement: Reports are non-transferable in v1
-
-In this version, reports SHALL exist only as personal codex entries on the purchasing player. Reports SHALL NOT be giftable, tradeable, or visible to alliance members other than via independent purchase. Player-to-player intel exchange is explicitly out of scope.
-
-#### Scenario: Alliance member cannot read another member's reports
-- **WHEN** a player queries the codex while in an alliance
-- **THEN** the system SHALL display only that player's own purchased reports; no alliance-shared report store SHALL exist
+#### Scenario: Alliance member cannot read another member's Surveys
+- **WHEN** a player opens their Codex while in an alliance
+- **THEN** the Codex SHALL display only that player's own acquired Surveys; no alliance-shared Survey store SHALL exist
