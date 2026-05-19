@@ -18,16 +18,23 @@ sector-hopping merchant to galaxy-spanning trader by reading markets.
   station price you can see is recorded into a per-player journal as
   you enter sectors. Journals auto-share within alliances.
 - **Quantum Trading AI.** At every Trading Post and Faction Headquarters,
-  pay a flat fee to run a Trade Report — a whole-journal analysis of the
-  best buy and sell stations per commodity, far beyond the range of a
-  vanilla Trading Subsystem. The AI also offers a Faction Survey for the
-  current station's faction.
+  pay a flat fee to run a Trade Report — a whole-journal analysis with
+  two tabs:
+  - **Best Prices**: per-commodity best buy and best sell stations across
+    your entire journal, far beyond the range of a vanilla Trading Subsystem.
+  - **Trade Routes**: canonical sector-pair round-trip loops where BOTH
+    legs are profitable, including stock/demand context per leg, per-trip
+    profit, and round-trip total. Sortable via a vanilla-style dropdown.
+  One payment unlocks both tabs and stays valid for 1 hour across any
+  Trading Post. The AI also offers a Faction Survey for the current
+  station's faction. **Hover any cell for full details.**
 - **Faction Surveys + Trader's Codex.** Acquire a permanent Survey of a
   faction's economy from the Quantum Trading AI; review them any time
   from the **Trader's Codex** tab on your player menu (P). Each Codex
   entry shows the faction's Economy, Specialization, Sells Low / Buys
-  High tag lists, a Galactic Avg vs Faction Avg commodity table, and a
-  "Show Home Sector on Map" button to navigate to their space.
+  High tag lists, a Galactic Avg vs Faction Avg commodity table (hover
+  any row for tag + multiplier detail), and a "Show Home Sector on Map"
+  button to navigate to their space.
 
 ## Installation
 
@@ -80,8 +87,11 @@ Server operators can edit `data/config/spacetrucker.lua` to tune:
 ## Player menu
 
 Open the **Trader's Codex** tab from the player menu (P) to browse
-acquired Faction Surveys. Sort buttons across the top: Faction (default),
-Economy, Specialization, Acquired (date). Click a row to open detail.
+acquired Faction Surveys. A vanilla-style sort dropdown at the top
+offers Faction (A-Z / Z-A, default A-Z), Economy (A-Z), Specialization
+(high/low), and Date Acquired (newest/oldest). Click a row to open
+detail; hover any commodity in the detail table for full tag +
+multiplier info.
 
 ## Diagnostics
 

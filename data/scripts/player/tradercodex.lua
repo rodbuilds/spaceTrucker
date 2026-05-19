@@ -61,9 +61,11 @@ function TraderCodex.serverGetCodexDetail(playerIndex, factionId)
     for i = 1, math.min(CAP, #band) do
         local r = band[i]
         table.insert(trimmed, {
-            name     = r.name,
-            vanilla  = math.floor(r.vanilla),
-            expected = math.floor(r.expected),
+            name       = r.name,
+            vanilla    = math.floor(r.vanilla),
+            expected   = math.floor(r.expected),
+            tag        = r.tag,
+            multiplier = r.multiplier,   -- raw (specialization-adjusted) bias multiplier
         })
     end
 
@@ -115,8 +117,8 @@ if onClient() then
 local tab
 local surveyList            -- ListBoxEx of acquired Faction Surveys
 local commodityList         -- ListBoxEx of the selected Survey's commodities
-local listSortMode = "faction"
-local listAscending = true
+local sortCombo             -- vanilla-style sort dropdown
+local listSortMode = 1      -- combo index (1 = Faction A-Z default; see SORT_OPTIONS)
 local cachedList = {}
 local sortedRows = {}       -- mirrors current visible row order so index lookup works
 local selectedFactionId
@@ -149,19 +151,30 @@ local function specLabel(spec)
     return ({"Lightly", "Modestly", "Solidly", "Heavily", "Pure"})[n]
 end
 
+-- Sort options shown in the dropdown. Order here MUST match `addEntry` order
+-- in `buildTab`. Each entry has a label (for display) and a comparator.
+local SORT_OPTIONS = {
+    { label = "Faction Name (A-Z)",
+      cmp = function(a, b) return (a.factionName or "") < (b.factionName or "") end },
+    { label = "Faction Name (Z-A)",
+      cmp = function(a, b) return (a.factionName or "") > (b.factionName or "") end },
+    { label = "Economy (A-Z)",
+      cmp = function(a, b) return (a.economy or "")     < (b.economy or "")     end },
+    { label = "Specialization (high to low)",
+      cmp = function(a, b) return (a.specialization or 0) > (b.specialization or 0) end },
+    { label = "Specialization (low to high)",
+      cmp = function(a, b) return (a.specialization or 0) < (b.specialization or 0) end },
+    { label = "Date Acquired (newest first)",
+      cmp = function(a, b) return (a.acquiredAt or 0)  > (b.acquiredAt or 0)  end },
+    { label = "Date Acquired (oldest first)",
+      cmp = function(a, b) return (a.acquiredAt or 0)  < (b.acquiredAt or 0)  end },
+}
+
 local function computeSortedList()
     local out = {}
     for _, r in ipairs(cachedList) do table.insert(out, r) end
-    table.sort(out, function(a, b)
-        local av, bv
-        if listSortMode == "faction"            then av, bv = a.factionName or "", b.factionName or ""
-        elseif listSortMode == "economy"        then av, bv = a.economy or "",     b.economy or ""
-        elseif listSortMode == "specialization" then av, bv = a.specialization or 0, b.specialization or 0
-        elseif listSortMode == "acquired"       then av, bv = a.acquiredAt or 0,   b.acquiredAt or 0
-        else av, bv = a.factionName or "", b.factionName or ""
-        end
-        if listAscending then return av < bv else return av > bv end
-    end)
+    local opt = SORT_OPTIONS[listSortMode] or SORT_OPTIONS[1]
+    table.sort(out, opt.cmp)
     return out
 end
 
@@ -193,20 +206,16 @@ local function refreshListBox()
     end
 end
 
-local function setSort(mode)
-    if listSortMode == mode then
-        listAscending = not listAscending
-    else
-        listSortMode = mode
-        listAscending = true
+function TraderCodex.onSortChanged()
+    if not sortCombo then return end
+    local sel = sortCombo.selectedIndex
+    if type(sel) == "number" then
+        -- ComboBox is 0-indexed; SORT_OPTIONS is 1-indexed.
+        listSortMode = sel + 1
     end
     refreshListBox()
 end
 
-function TraderCodex.onSortByFaction()        setSort("faction") end
-function TraderCodex.onSortByEconomy()        setSort("economy") end
-function TraderCodex.onSortBySpecialization() setSort("specialization") end
-function TraderCodex.onSortByAcquired()       setSort("acquired") end
 function TraderCodex.onRefreshPressed()
     invokeServerFunction("serverGetCodexList", Player().index)
 end
@@ -263,6 +272,22 @@ function TraderCodex.clientReceiveCodexDetail(payload)
         commodityList:setEntry(0, idx, tostring(row.name), false, false, white)
         commodityList:setEntry(1, idx, tostring(row.vanilla),  false, false, white)
         commodityList:setEntry(2, idx, tostring(row.expected), false, false, white)
+        -- Per-row tooltip: full name + tag + multiplier + credit delta.
+        local mult  = tonumber(row.multiplier) or 1.0
+        local delta = (tonumber(row.expected) or 0) - (tonumber(row.vanilla) or 0)
+        local deltaText = (delta >= 0 and string.format("+%d cr", delta))
+                       or string.format("%d cr", delta)
+        local tooltip = string.format(
+            "%s\nTag category: %s\nFaction multiplier: x%.2f\nGalactic Avg: %d cr\nFaction Avg:  %d cr\nDelta:        %s",
+            tostring(row.name),
+            tostring(row.tag or "?"),
+            mult,
+            tonumber(row.vanilla) or 0,
+            tonumber(row.expected) or 0,
+            deltaText)
+        commodityList:setEntryTooltip(0, idx, tooltip)
+        commodityList:setEntryTooltip(1, idx, tooltip)
+        commodityList:setEntryTooltip(2, idx, tooltip)
     end
 
     if payload.truncated then
@@ -309,28 +334,51 @@ local function buildTab()
     local pad  = 10
     local inner = Rect(vec2(pad, pad), vec2(size.x - pad, size.y - pad))
 
-    -- Sort bar
+    -- Sort bar: vanilla-style "Sort by: [combo]" + Refresh
     local sortBarH = 30
     local x, y = inner.lower.x, inner.lower.y
-    local bw = 130
-    tab:createButton(Rect(vec2(x,             y), vec2(x + bw,         y + 28)),
-        "Sort: Faction"%_t,        "onSortByFaction")
-    tab:createButton(Rect(vec2(x + bw + 6,    y), vec2(x + bw * 2 + 6, y + 28)),
-        "Sort: Economy"%_t,        "onSortByEconomy")
-    tab:createButton(Rect(vec2(x + bw*2 + 12, y), vec2(x + bw*3 + 12,  y + 28)),
-        "Sort: Specialization"%_t, "onSortBySpecialization")
-    tab:createButton(Rect(vec2(x + bw*3 + 18, y), vec2(x + bw*4 + 18,  y + 28)),
-        "Sort: Acquired"%_t,       "onSortByAcquired")
-    tab:createButton(Rect(vec2(x + bw*4 + 30, y), vec2(x + bw*4 + 110, y + 28)),
-        "Refresh"%_t,              "onRefreshPressed")
+    tab:createLabel(Rect(vec2(x, y + 4), vec2(x + 70, y + 28)),
+        "Sort by:", 14)
+    sortCombo = tab:createComboBox(
+        Rect(vec2(x + 80, y), vec2(x + 80 + 320, y + 28)),
+        "onSortChanged")
+    for _, opt in ipairs(SORT_OPTIONS) do
+        sortCombo:addEntry(opt.label)
+    end
+    sortCombo.selectedIndex = 0   -- "Faction Name (A-Z)"
 
-    -- Below sort bar, split into list (top ~40%) and detail (bottom ~60%)
+    tab:createButton(
+        Rect(vec2(x + 80 + 320 + 12, y), vec2(x + 80 + 320 + 92, y + 28)),
+        "Refresh"%_t, "onRefreshPressed")
+
+    -- Below sort bar: column headers row, then survey list, then detail panel
     local belowSort = inner.lower.y + sortBarH + 10
-    local listH = math.floor((inner.upper.y - belowSort) * 0.4)
+    local surveyHeaderH = 22
+    local listW = inner.upper.x - inner.lower.x
+    local lc0 = math.floor(listW * 0.25)   -- Faction
+    local lc1 = math.floor(listW * 0.12)   -- Economy
+    local lc2 = math.floor(listW * 0.08)   -- Spec stars
+    local lc3 = math.floor(listW * 0.25)   -- Sells low
+    local lc4 = listW - (lc0 + lc1 + lc2 + lc3)  -- Buys high
 
-    local listRect = Rect(vec2(inner.lower.x, belowSort),
-                          vec2(inner.upper.x, belowSort + listH))
-    local detailTop = belowSort + listH + 10
+    -- Survey list column headers
+    local lhx = inner.lower.x
+    local function surveyHeader(label, w)
+        tab:createLabel(Rect(vec2(lhx, belowSort), vec2(lhx + w, belowSort + surveyHeaderH)),
+            label, 13)
+        lhx = lhx + w
+    end
+    surveyHeader("Faction",         lc0)
+    surveyHeader("Economy",         lc1)
+    surveyHeader("Spec",            lc2)
+    surveyHeader("Sells low",       lc3)
+    surveyHeader("Buys high",       lc4)
+
+    local listTop  = belowSort + surveyHeaderH + 4
+    local listH    = math.floor((inner.upper.y - listTop) * 0.4)
+    local listRect = Rect(vec2(inner.lower.x, listTop),
+                          vec2(inner.upper.x, listTop + listH))
+    local detailTop = listTop + listH + 10
     local detailRect = Rect(vec2(inner.lower.x, detailTop),
                             vec2(inner.upper.x, inner.upper.y))
 
@@ -338,12 +386,11 @@ local function buildTab()
     surveyList = tab:createListBoxEx(listRect)
     surveyList.columns = 5
     surveyList.rowHeight = 22
-    local listW = listRect.upper.x - listRect.lower.x
-    surveyList:setColumnWidth(0, math.floor(listW * 0.25))   -- Faction
-    surveyList:setColumnWidth(1, math.floor(listW * 0.12))   -- Economy
-    surveyList:setColumnWidth(2, math.floor(listW * 0.08))   -- Spec stars
-    surveyList:setColumnWidth(3, math.floor(listW * 0.25))   -- Sells low
-    surveyList:setColumnWidth(4, math.floor(listW * 0.30))   -- Buys high
+    surveyList:setColumnWidth(0, lc0)
+    surveyList:setColumnWidth(1, lc1)
+    surveyList:setColumnWidth(2, lc2)
+    surveyList:setColumnWidth(3, lc3)
+    surveyList:setColumnWidth(4, lc4)
     surveyList.onSelectFunction = "onSurveyRowSelected"
 
     emptyStateLabel = tab:createLabel(listRect,

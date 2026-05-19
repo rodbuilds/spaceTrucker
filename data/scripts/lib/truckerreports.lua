@@ -264,4 +264,127 @@ function TruckerReports.ownsSurveyFor(player, factionId)
     return TruckerReports.latestFor(player, factionId) ~= nil
 end
 
+-- ---------- Round-trip routes (Trade Routes tab) ----------
+
+-- Bucket observations by sector + action (player-buy or player-sell), keeping
+-- the BEST row per commodity within each sector (lowest buy price / highest
+-- sell price). Returns a sorted-canonical-order list of sectors.
+local function bucketBySector(rows)
+    local sectors = {}
+    for _, r in ipairs(rows) do
+        local skey = string.format("%d|%d", r.sectorX or 0, r.sectorY or 0)
+        local b = sectors[skey]
+        if not b then
+            b = { key = skey, x = r.sectorX or 0, y = r.sectorY or 0,
+                  bestBuys = {}, bestSells = {} }
+            sectors[skey] = b
+        end
+        local c = r.commodity or "?"
+        if r.action == "buy" then
+            -- Player buys here -> station sells. Track cheapest buy.
+            local cur = b.bestBuys[c]
+            if not cur or (r.price or math.huge) < (cur.price or math.huge) then
+                b.bestBuys[c] = r
+            end
+        else
+            -- Player sells here -> station buys. Track richest sell.
+            local cur = b.bestSells[c]
+            if not cur or (r.price or 0) > (cur.price or 0) then
+                b.bestSells[c] = r
+            end
+        end
+    end
+    local list = {}
+    for _, b in pairs(sectors) do table.insert(list, b) end
+    table.sort(list, function(a, b)
+        if a.x ~= b.x then return a.x < b.x end
+        return a.y < b.y
+    end)
+    return list
+end
+
+-- Find the best (commodity, buy-at-A, sell-at-B) route between two sector
+-- buckets. Returns the route table or nil if no profitable route exists.
+local function bestRouteBetween(srcBucket, dstBucket)
+    local best
+    for commodity, buyRow in pairs(srcBucket.bestBuys) do
+        local sellRow = dstBucket.bestSells[commodity]
+        if sellRow then
+            local perUnit = (sellRow.price or 0) - (buyRow.price or 0)
+            if perUnit > 0 then
+                local stock  = math.max(0, buyRow.stock or 0)
+                local demand = math.max(0, (sellRow.maxStock or 0) - (sellRow.stock or 0))
+                local cap    = math.min(stock, demand)
+                local tripProfit = perUnit * cap
+                if not best or tripProfit > best.tripProfit then
+                    best = {
+                        commodity     = commodity,
+                        buyStation    = buyRow.stationName or "?",
+                        buyStock      = stock,
+                        buyPrice      = buyRow.price or 0,
+                        buyTimestamp  = buyRow.timestamp or 0,
+                        sellStation   = sellRow.stationName or "?",
+                        sellDemand    = demand,
+                        sellPrice     = sellRow.price or 0,
+                        sellTimestamp = sellRow.timestamp or 0,
+                        perUnitProfit = perUnit,
+                        tripCap       = cap,
+                        tripProfit    = tripProfit,
+                    }
+                end
+            end
+        end
+    end
+    return best
+end
+
+-- Compute round-trip routes. Returns an array of canonical sector-pair rows
+-- where BOTH outbound and backhaul are profitable. Sorted by roundTripProfit
+-- descending, capped at MAX_PAIRS.
+local MAX_PAIRS = 50
+function TruckerReports.computeRoundTripRoutes(player)
+    if not player then return {} end
+
+    local rows = TruckerJournal.effectiveJournal(player)
+    if #rows > TruckerReports.OBSERVATION_CAP then
+        local trimmed = {}
+        for i = 1, TruckerReports.OBSERVATION_CAP do trimmed[i] = rows[i] end
+        rows = trimmed
+    end
+
+    local sectors = bucketBySector(rows)
+    local routes  = {}
+
+    -- Canonical ordering: i < j so each unordered pair appears once.
+    for i = 1, #sectors do
+        for j = i + 1, #sectors do
+            local A, B = sectors[i], sectors[j]
+            local bestOut  = bestRouteBetween(A, B)   -- buy at A, sell at B
+            local bestBack = bestRouteBetween(B, A)   -- buy at B, sell at A
+            if bestOut and bestBack then
+                local dx, dy = A.x - B.x, A.y - B.y
+                local distance = math.floor(math.sqrt(dx*dx + dy*dy))
+                table.insert(routes, {
+                    fromX = A.x, fromY = A.y,
+                    toX   = B.x, toY   = B.y,
+                    distance        = distance,
+                    outbound        = bestOut,
+                    backhaul        = bestBack,
+                    roundTripProfit = bestOut.tripProfit + bestBack.tripProfit,
+                })
+            end
+        end
+    end
+
+    table.sort(routes, function(a, b)
+        return a.roundTripProfit > b.roundTripProfit
+    end)
+    if #routes > MAX_PAIRS then
+        local trimmed = {}
+        for i = 1, MAX_PAIRS do trimmed[i] = routes[i] end
+        routes = trimmed
+    end
+    return routes
+end
+
 return TruckerReports
