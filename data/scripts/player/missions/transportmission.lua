@@ -181,6 +181,7 @@ function tryPickupCargo()
     c.speedBonus       = speedBon
     c.speedBonusWindow = window
     c.relations        = rel
+    c.playerIndex      = callingPlayer
 
     local g = goods[c.goodName]
     if not g then
@@ -251,6 +252,16 @@ mission.phases[2].onSectorEntered = function(x, y)
 
     local cargoValue = (c.amount or 0) * g.price
     Log.info("onSectorEntered (%d:%d): cargoValue=%d elapsed=%.0fs", x, y, cargoValue, c.elapsed or 0)
+
+    -- Debug override: /trucker transport ambush sets this flag on the player
+    local player       = c.playerIndex and Player(c.playerIndex)
+    local debugAmbush  = player and player:getValue("trucker_debug_ambush") == "1"
+    if debugAmbush then
+        player:setValue("trucker_debug_ambush", "0")
+        Log.info("onSectorEntered (%d:%d): debug ambush override — force-spawning pirates", x, y)
+        spawnAmbushPirates()
+        return
+    end
 
     if cargoValue > 50000 then
         local regular, _, blocked, home = SectorSpecifics():determineContent(x, y, Server().seed)

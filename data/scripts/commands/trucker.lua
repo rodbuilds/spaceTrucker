@@ -1,12 +1,12 @@
 -- /trucker <subcommand>  -  Space Trucker diagnostic + codex commands.
 package.path = package.path .. ";data/scripts/lib/?.lua;data/scripts/entity/merchants/?.lua"
 
-local TruckerAssign     = include("truckerassignarchetypes")
-local TruckerJournal    = include("truckerjournal")
-local TruckerReports    = include("truckerreports")
-local TruckerSurvey     = include("truckersurvey")
-local TruckerArchetypes = include("truckerarchetypes")
-local Broker            = include("transportbroker")
+local TruckerAssign        = include("truckerassignarchetypes")
+local TruckerJournal       = include("truckerjournal")
+local TruckerReports       = include("truckerreports")
+local TruckerSurvey        = include("truckersurvey")
+local TruckerArchetypes    = include("truckerarchetypes")
+local Broker               = include("transportbroker")
 
 local function send(player, msg)
     if player and player.sendChatMessage then
@@ -203,11 +203,18 @@ local function cmdTransport(player, sub)
             "Posted transport bulletin to %s: \"%s\"  reward %s",
             station.name, bulletin.brief, bulletin.reward))
 
+    elseif sub == "ambush" then
+        if not onServer() then return end
+        if not player then send(player, "Must be called by a player.") return end
+        player:setValue("trucker_debug_ambush", "1")
+        send(player, "Ambush primed. Jump to any sector while carrying transport cargo — pirates will spawn on arrival.")
+
     else
         send(player,
-            "Usage: /trucker transport [sim|bulletin]\n" ..
+            "Usage: /trucker transport [sim|bulletin|ambush]\n" ..
             "  sim      — simulate a contract from your current sector (no side effects)\n" ..
-            "  bulletin — force-post one transport bulletin to the nearest station now")
+            "  bulletin — force-post one transport bulletin to the nearest station now\n" ..
+            "  ambush   — prime next sector jump to force pirates (requires active transport mission)")
     end
 end
 
@@ -241,5 +248,6 @@ function getHelp()
            "  reports / codex    — list Faction Surveys with price band preview\n" ..
            "  survey             — journal cross-reference (best buy/sell per commodity)\n" ..
            "  transport sim      — simulate a transport contract at your current sector\n" ..
-           "  transport bulletin — force-post a transport contract to the nearest station now"
+           "  transport bulletin — force-post a transport contract to the nearest station now\n" ..
+           "  transport ambush   — prime next sector jump to force a pirate ambush (requires active transport mission)"
 end

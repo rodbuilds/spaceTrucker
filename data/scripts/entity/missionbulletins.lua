@@ -31,7 +31,8 @@ function MissionBulletins.random()
 end
 
 local TRANSPORT_PATH = "data/scripts/player/missions/transportmission.lua"
-local TRANSPORT_MIN  = 3
+local TRANSPORT_MIN  = 1   -- minimum per eligible station
+local TRANSPORT_MAX  = 2   -- hard cap per eligible station
 
 local function isTransportEligible(title)
     if title == "Trading Post"  then return true end
@@ -57,6 +58,7 @@ local function countTransportBulletins()
 end
 
 local function postOneTransportBulletin()
+    if countTransportBulletins() >= TRANSPORT_MAX then return false end
     local ok, bulletin = run(TRANSPORT_PATH, "getBulletin", Entity())
     if ok == 0 and bulletin then
         Entity():invokeFunction("bulletinboard", "postBulletin", bulletin)
