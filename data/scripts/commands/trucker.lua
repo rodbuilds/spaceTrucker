@@ -1,11 +1,12 @@
 -- /trucker <subcommand>  -  Space Trucker diagnostic + codex commands.
-package.path = package.path .. ";data/scripts/lib/?.lua"
+package.path = package.path .. ";data/scripts/lib/?.lua;data/scripts/entity/merchants/?.lua"
 
 local TruckerAssign     = include("truckerassignarchetypes")
 local TruckerJournal    = include("truckerjournal")
 local TruckerReports    = include("truckerreports")
 local TruckerSurvey     = include("truckersurvey")
 local TruckerArchetypes = include("truckerarchetypes")
+local Broker            = include("transportbroker")
 
 local function send(player, msg)
     if player and player.sendChatMessage then
@@ -83,11 +84,139 @@ local function cmdSurvey(player)
     send(player, "(Visit a Trading Post for the full Quantum Trading AI Trade Report.)")
 end
 
+-- /trucker transport [sim|bulletin]
+-- sim      — simulate contract generation at your current sector and print what the bulletin
+--            board entry would look like. No game state is changed.
+-- bulletin — force-post one transport bulletin to the nearest station in this sector right now
+--            (useful for testing without waiting 60 minutes for the bulletin timer to fire).
+local function cmdTransport(player, sub)
+    sub = sub or "sim"
+
+    if sub == "sim" then
+        if not onServer() then return end
+        local sector = Sector()
+        if not sector then send(player, "No sector loaded.") return end
+        local x, y = sector:getCoordinates()
+
+        send(player, string.format("=== Transport Contract Simulator  sector (%d:%d) ===", x, y))
+
+        local ring   = Broker.getRing(x, y)
+        local bounds = Broker.RING_BOUNDS[ring]
+        send(player, string.format("Ring: %s  (zone bounds: %d–%d units, cap %.0f%% free space)",
+            ring, bounds.min, bounds.max, bounds.frac * 100))
+
+        -- Stations in sector — list titles and eligibility for Space Trucker transport missions
+        local stations  = {sector:getEntitiesByType(EntityType.Station)}
+        local eligible  = {}
+
+        local function transportWeight(title)
+            if title == "Trading Post"  then return 2.5 end
+            if title == "Resource Depot" then return 2.0 end
+            if title == "Habitat"       then return 1.5 end
+            if title == "Biotope"       then return 1.5 end
+            if string.match(title, "Factory$")
+                and title ~= "Fighter Factory"
+                and title ~= "Turret Factory" then return 1.5 end
+            return nil
+        end
+
+        if #stations == 0 then
+            send(player, "Stations in sector: none")
+        else
+            send(player, string.format("Stations in sector (%d):", #stations))
+            for _, s in ipairs(stations) do
+                local w = transportWeight(s.title)
+                if w then
+                    send(player, string.format("  ✓  '%s'  — eligible for transport missions (weight %.1f)", s.title, w))
+                    table.insert(eligible, s)
+                else
+                    send(player, string.format("  ✗  '%s'  — not a transport mission source", s.title))
+                end
+            end
+        end
+
+        if #eligible == 0 then
+            send(player, "No eligible stations here — transport bulletins will not appear in this sector.")
+            return
+        end
+
+        -- Use first eligible station for the rest of the simulation
+        local simStation = eligible[1]
+        local factionId  = simStation.factionIndex
+
+        local destX, destY = Broker.selectDestination(x, y, factionId)
+        if not destX then
+            send(player, "FAIL: selectDestination returned nil — no valid sector found 5–30 away.")
+            return
+        end
+        local dist = math.floor(math.sqrt((destX-x)^2 + (destY-y)^2))
+        send(player, string.format("Destination: (%d:%d)  dist=%d sectors", destX, destY, dist))
+
+        -- Cargo
+        local stationTitle = simStation.title
+        local goodName     = Broker.selectCargo(stationTitle, ring)
+        send(player, string.format("Simulating from: '%s'  →  cargo good: %s", stationTitle, goodName))
+
+        -- Amount (simulate 200 free units of cargo space)
+        local simFree  = 200
+        local amount   = Broker.calcAmount(ring, simFree)
+        send(player, string.format("Amount: %d units  (simulated %d free cargo space)", amount, simFree))
+
+        -- Reward
+        local total, speedBon, window, rel = Broker.calcReward(destX, destY, amount, goodName, dist)
+        send(player, string.format("Reward: %d cr  (+%d speed bonus if under %d min)  relations +%d",
+            total, speedBon, math.floor(window / 60), rel))
+
+        -- Ambush check
+        local g = goods and goods[goodName]
+        if g then
+            local cargoValue = amount * g.price
+            local ambushStr = cargoValue > 50000 and "YES (en-route ambush active)" or "no"
+            send(player, string.format("CargoValue: %d cr  → ambush? %s", cargoValue, ambushStr))
+        end
+
+        send(player, string.format(
+            "--- Bulletin Board preview ---\n" ..
+            "  Brief:      Transport %d %s to (%d:%d)\n" ..
+            "  Difficulty: Normal\n" ..
+            "  Reward:     ¢%d\n" ..
+            "  Description: Deliver cargo to sector (%d:%d). Reward: ¢%d.",
+            amount, goodName, destX, destY, total, destX, destY, total))
+
+    elseif sub == "bulletin" then
+        if not onServer() then return end
+        local sector   = Sector()
+        local stations = {sector:getEntitiesByType(EntityType.Station)}
+        if #stations == 0 then
+            send(player, "No stations in this sector — cannot post bulletin.")
+            return
+        end
+        local station = stations[1]
+        local ok, bulletin = run("data/scripts/player/missions/transportmission.lua", "getBulletin", station)
+        if ok ~= 0 or not bulletin then
+            send(player, string.format(
+                "getBulletin returned nil (ok=%s). Check server log for [SpaceTrucker] warnings.", tostring(ok)))
+            return
+        end
+        station:invokeFunction("bulletinboard", "postBulletin", bulletin)
+        send(player, string.format(
+            "Posted transport bulletin to %s: \"%s\"  reward %s",
+            station.name, bulletin.brief, bulletin.reward))
+
+    else
+        send(player,
+            "Usage: /trucker transport [sim|bulletin]\n" ..
+            "  sim      — simulate a contract from your current sector (no side effects)\n" ..
+            "  bulletin — force-post one transport bulletin to the nearest station now")
+    end
+end
+
 local DISPATCH = {
-    debug   = cmdDebug,
-    reports = cmdReports,
-    survey  = cmdSurvey,
-    codex   = cmdReports,   -- friendly alias
+    debug     = cmdDebug,
+    reports   = cmdReports,
+    survey    = cmdSurvey,
+    codex     = cmdReports,     -- friendly alias
+    transport = cmdTransport,   -- transport mission diagnostics
 }
 
 function execute(sender, commandName, sub, ...)
@@ -95,7 +224,7 @@ function execute(sender, commandName, sub, ...)
     local player = (type(sender) == "number") and Player(sender) or sender
     local fn = DISPATCH[sub]
     if not fn then
-        send(player, "Unknown subcommand. Try: debug | reports | codex | survey")
+        send(player, "Unknown subcommand. Try: debug | reports | codex | survey | transport")
         return 1, "", ""
     end
     fn(player, ...)
@@ -103,9 +232,14 @@ function execute(sender, commandName, sub, ...)
 end
 
 function getDescription()
-    return "Space Trucker: diagnostics, codex listing, journal survey"
+    return "Space Trucker: diagnostics, codex listing, journal survey, transport testing"
 end
 
 function getHelp()
-    return "Usage: /trucker [debug|reports|codex|survey]"
+    return "Usage: /trucker [debug|reports|codex|survey|transport]\n" ..
+           "  debug              — faction archetype distribution + journal/survey counts\n" ..
+           "  reports / codex    — list Faction Surveys with price band preview\n" ..
+           "  survey             — journal cross-reference (best buy/sell per commodity)\n" ..
+           "  transport sim      — simulate a transport contract at your current sector\n" ..
+           "  transport bulletin — force-post a transport contract to the nearest station now"
 end

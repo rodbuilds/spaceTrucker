@@ -81,6 +81,9 @@ mission.makeBulletin = function(station)
     local g        = goods[goodName]
     local dispName = g and g:good():displayName(displayAmount) or goodName
 
+    Log.info("makeBulletin: station='%s' ring=%s good=%s amount=%d dest=(%d:%d) dist=%d reward=%d speedBonus=%d window=%ds",
+        station.title or "?", ring, goodName, displayAmount, destX, destY, dist, total, speedBon, math.floor(window))
+
     return {
         brief       = "Transport ${amount} ${good} to (${x}:${y})"%_T,
         title       = "Transport: ${good}"%_T,
@@ -212,6 +215,8 @@ local loadCargoCallback = makeDialogServerCallback("_loadCargo", 1, function()
     end
 
     ship:addCargo(g:good(), c.amount)
+    Log.info("_loadCargo: loaded %d %s onto ship; dest=(%d:%d) reward=%d speedBonus=%d window=%ds",
+        c.amount, c.goodName, c.destX, c.destY, c.reward, c.speedBonus, math.floor(c.speedBonusWindow))
 
     Log.sendMail(player,
         "Transport Contract: Cargo Loaded"%_t,
@@ -269,11 +274,18 @@ mission.phases[2].onSectorEntered = function(x, y)
     if not g then return end
 
     local cargoValue = (c.amount or 0) * g.price
+    Log.info("onSectorEntered (%d:%d): cargoValue=%d elapsed=%.0fs", x, y, cargoValue, c.elapsed or 0)
+
     if cargoValue > 50000 then
         local regular, _, blocked, home = SectorSpecifics():determineContent(x, y, Server().seed)
         if (regular or home) and not blocked then
+            Log.info("onSectorEntered: cargoValue>50000 — rolling ambush in (%d:%d)", x, y)
             spawnAmbushPirates()
+        else
+            Log.info("onSectorEntered: cargoValue>50000 but sector (%d:%d) is offgrid/blocked — no ambush", x, y)
         end
+    else
+        Log.info("onSectorEntered: cargoValue=%d ≤ 50000 — no ambush", cargoValue)
     end
 end
 
@@ -376,6 +388,9 @@ function tryDeliverCargo()
     mission.data.accomplishMessage = speedBon > 0
         and "Cargo delivered ahead of schedule! Speed bonus awarded."%_T
         or  "Cargo delivered successfully."%_T
+
+    Log.info("onDelivery: removed=%d/%d fraction=%.2f base=%d speedBon=%d total=%d elapsed=%.0fs window=%.0fs",
+        removed, c.amount, fraction, credits, speedBon, credits + speedBon, c.elapsed or 0, c.speedBonusWindow or 0)
 
     accomplish()
 end

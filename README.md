@@ -106,7 +106,7 @@ offers Faction (A-Z / Z-A, default A-Z), Economy (A-Z), Specialization
 detail; hover any commodity in the detail table for full tag +
 multiplier info.
 
-## Diagnostics
+## Diagnostics & Testing
 
 In-game admin commands (require server-admin privileges):
 
@@ -117,6 +117,40 @@ In-game admin commands (require server-admin privileges):
   price band
 - `/trucker survey` — chat output of your journal cross-reference per
   commodity (best buy / best sell stations)
+
+### Testing transport missions
+
+| Command | What it does |
+|---|---|
+| `/trucker transport sim` | Simulates a contract from your current sector. Prints ring, destination, cargo good, amount, reward, speed-bonus window, and ambush threshold — **no game state changed**. Use this first to confirm the broker math is working. |
+| `/trucker transport bulletin` | Force-posts one transport bulletin to the nearest station in your sector right now, bypassing the 60-minute bulletin timer. Use this to test the bulletin board UI without waiting. |
+
+**Checklist for first boot:**
+
+1. Start a new galaxy, load in.
+2. Open server log — look for:
+   ```
+   [SpaceTrucker] [INFO] transportbroker loaded
+   [SpaceTrucker] [INFO] transportmission loaded
+   ```
+3. Fly to any Trading Post. Run `/trucker transport sim` — confirm it prints ring, cargo, reward.
+4. Run `/trucker transport bulletin` — open the station bulletin board and confirm a "Transport: ..." entry appears.
+5. Accept the bulletin. Dock at the source station, open dialog, click **Pick up transport cargo** — confirm cargo appears in hold and a mail arrives.
+6. Fly toward the destination. Check server log for:
+   ```
+   [SpaceTrucker] [INFO] onSectorEntered (x:y): cargoValue=... elapsed=...
+   ```
+7. Arrive at destination, dock at any station, click **Deliver** — confirm credits and relations are awarded.
+
+**What to look for in server log during a run:**
+
+```
+[SpaceTrucker] [INFO] makeBulletin: station='Trading Post' ring=mid good=Steel amount=80 dest=(230:160) dist=22 reward=88200 speedBonus=26460 window=2640s
+[SpaceTrucker] [INFO] _loadCargo: loaded 80 Steel onto ship; dest=(230:160) reward=88200 speedBonus=26460 window=2640s
+[SpaceTrucker] [INFO] onSectorEntered (225:170): cargoValue=22160 elapsed=45s
+[SpaceTrucker] [INFO] onSectorEntered (225:170): cargoValue=22160 ≤ 50000 — no ambush
+[SpaceTrucker] [INFO] onDelivery: removed=80/80 fraction=1.00 base=88200 speedBon=26460 total=114660 elapsed=1820s window=2640s
+```
 
 ## Authors
 
