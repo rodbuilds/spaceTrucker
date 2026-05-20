@@ -10,13 +10,13 @@ include("galaxy")
 include("relations")
 include("stringutility")
 
-local Log                = include("truckerlog")
-local SectorSpecifics    = include("sectorspecifics")
-local Balancing          = include("galaxy")
+local Log                  = include("truckerlog")
+local SectorSpecifics      = include("sectorspecifics")
+local Balancing            = include("galaxy")
 local AsyncPirateGenerator = include("asyncpirategenerator")
-local SpawnUtility       = include("spawnutility")
-local MissionUT          = include("missionutility")
-local Broker             = include("transportbroker")
+local SpawnUtility         = include("spawnutility")
+local MissionUT            = include("missionutility")
+local Broker               = include("transportbroker")
 
 Log.info("transportmission loaded")
 
@@ -30,8 +30,8 @@ end
 -- ============================================================
 -- Mission metadata (top-level defaults)
 -- ============================================================
-mission.data.title          = "Transport Contract"%_t
-mission.data.brief          = mission.data.title
+mission.data.title            = "Transport Contract"%_t
+mission.data.brief            = mission.data.title
 mission.data.autoTrackMission = true
 
 mission.data.description    = {}
@@ -61,9 +61,9 @@ mission.data.custom.destStationName  = ""
 mission.makeBulletin = function(station)
     if onClient() then return end
 
-    local x, y    = Sector():getCoordinates()
-    local ring     = Broker.getRing(x, y)
-    local bounds   = Broker.RING_BOUNDS[ring]
+    local x, y      = Sector():getCoordinates()
+    local ring      = Broker.getRing(x, y)
+    local bounds    = Broker.RING_BOUNDS[ring]
     local factionId = station.factionIndex
 
     local destX, destY = Broker.selectDestination(x, y, factionId)
@@ -86,7 +86,8 @@ mission.makeBulletin = function(station)
         station.title or "?", ring, goodName, displayAmount, destX, destY, dist, total, speedBon, math.floor(window))
 
     return {
-        brief       = "Transport ${amount} ${good} to (${x}:${y})"%_T,
+        -- Pre-formatted unique brief — template-string briefs get deduplicated by the bulletin board
+        brief       = string.format("Transport %d %s to (%d:%d)", displayAmount, dispName, destX, destY),
         title       = "Transport: ${good}"%_T,
         description = "Deliver cargo to sector (${x}:${y}). Reward: ¢${reward}."%_T,
         difficulty  = "Normal"%_T,
@@ -100,16 +101,16 @@ mission.makeBulletin = function(station)
         giverTitle     = station.title,
         giverTitleArgs = station:getTitleArguments(),
         arguments = {{
-            giver           = station.id,
-            goodName        = goodName,
-            displayAmount   = displayAmount,
-            destX           = destX,
-            destY           = destY,
-            ring            = ring,
-            rewardTotal     = total,
-            speedBonus      = speedBon,
+            giver            = station.id,
+            goodName         = goodName,
+            displayAmount    = displayAmount,
+            destX            = destX,
+            destY            = destY,
+            ring             = ring,
+            rewardTotal      = total,
+            speedBonus       = speedBon,
             speedBonusWindow = window,
-            relations       = rel,
+            relations        = rel,
         }},
     }
 end
@@ -124,21 +125,22 @@ mission.phases[1].initialize = function(restoring)
 
     local a = mission.data.arguments
     local c = mission.data.custom
-    c.goodName          = a.goodName
-    c.displayAmount     = a.displayAmount
-    c.destX             = a.destX
-    c.destY             = a.destY
-    c.ring              = a.ring
-    c.reward            = a.rewardTotal
-    c.speedBonus        = a.speedBonus
-    c.speedBonusWindow  = a.speedBonusWindow
-    c.relations         = a.relations
-    c.elapsed           = 0
-    c.destStationId     = ""
+    c.goodName         = a.goodName
+    c.displayAmount    = a.displayAmount
+    c.destX            = a.destX
+    c.destY            = a.destY
+    c.ring             = a.ring
+    c.reward           = a.rewardTotal
+    c.speedBonus       = a.speedBonus
+    c.speedBonusWindow = a.speedBonusWindow
+    c.relations        = a.relations
+    c.elapsed          = 0
+    c.destStationId    = ""
+    c.destStationName  = ""
 
     mission.data.targets = {mission.data.giver.id.string}
-    mission.data.description[2].visible    = true
-    mission.data.description[2].arguments  = {giver = mission.data.giver.baseTitle}
+    mission.data.description[2].visible   = true
+    mission.data.description[2].arguments = {giver = mission.data.giver.baseTitle}
 end
 
 mission.phases[1].onStartDialog = function(entityId)
@@ -147,6 +149,9 @@ mission.phases[1].onStartDialog = function(entityId)
     ui:addDialogOption("Pick up transport cargo"%_t, "tryPickupCargo")
 end
 
+-- No confirmation dialog: the player already committed by accepting the bulletin.
+-- Server side loads cargo directly and sends a mail receipt.
+-- Space-check failure sends a chat notification instead of a dialog.
 function tryPickupCargo()
     if onClient() then
         invokeServerFunction("tryPickupCargo")
@@ -162,96 +167,54 @@ function tryPickupCargo()
     local free   = ship.freeCargoSpace or (ship.cargoCapacity - ship.cargoUsed)
 
     if free < bounds.min then
-        -- Not enough space — refusal dialog
-        -- onEnd must be on a dialog object, not on an answer entry; use followUp chain
-        local d_cancel = {}
-        d_cancel.text = "Contract cancelled."%_T
-        d_cancel.onEnd = "_abandonMission"
-
-        local d = {}
-        d.text = "We need at least ${min} units of cargo space. Your ship currently has ${free} units free. Come back with a larger ship."%_T % {min = bounds.min, free = free}
-        d.answers = {
-            {answer = "I'll come back with a larger ship."%_t},
-            {answer = "Not interested."%_t, followUp = d_cancel},
-        }
-        ScriptUI(mission.data.giver.id):interactShowDialog(d, false)
+        player:sendChatMessage("Transport", 1, string.format(
+            "Not enough cargo space. Need at least %d units, you have %d free.", bounds.min, free))
         return
     end
 
-    -- Enough space — recalculate actual amount based on real free space and show confirm dialog
-    local dist   = sectorDist(mission.data.giver.coordinates.x, mission.data.giver.coordinates.y, c.destX, c.destY)
+    local gx, gy = Sector():getCoordinates()
+    local dist   = sectorDist(gx, gy, c.destX, c.destY)
     local amount = Broker.calcAmount(c.ring, free)
     local total, speedBon, window, rel = Broker.calcReward(c.destX, c.destY, amount, c.goodName, dist)
-    c.amount          = amount
-    c.reward          = total
-    c.speedBonus      = speedBon
+    c.amount           = amount
+    c.reward           = total
+    c.speedBonus       = speedBon
     c.speedBonusWindow = window
-    c.relations       = rel
+    c.relations        = rel
 
-    local g        = goods[c.goodName]
-    local dispName = g and g:good():displayName(amount) or c.goodName
-
-    local d1, d2 = {}, {}
-    d1.text = "We need ${amount} ${good} delivered to sector (${x}:${y}). Reward: ¢${reward}. Deliver within ${mins} minutes for a ¢${bonus} speed bonus."%_T % {
-        amount = amount, good = dispName,
-        x = c.destX, y = c.destY,
-        reward = createMonetaryString(total),
-        mins   = math.floor(window / 60),
-        bonus  = createMonetaryString(speedBon),
-    }
-    -- onEnd must be on a dialog object, not on an answer entry; use followUp chain
-    local d_loaded = {}
-    d_loaded.text = ("Cargo secured. Deliver to sector (${x}:${y}). Safe travels."%_T) % {x = c.destX, y = c.destY}
-    d_loaded.onEnd = "_loadCargo"
-
-    d1.answers = {
-        {answer = "Load the cargo."%_t, followUp = d_loaded},
-        {answer = "Maybe later."%_t},
-    }
-    ScriptUI(mission.data.giver.id):interactShowDialog(d1, false)
-end
-callable(nil, "tryPickupCargo")
-
-local loadCargoCallback = makeDialogServerCallback("_loadCargo", 1, function()
-    local player = Player(callingPlayer)
-    local ship   = player and player.craft
-    if not ship then return end
-
-    local c = mission.data.custom
     local g = goods[c.goodName]
     if not g then
-        Log.warn("transportmission: good '%s' not found at cargo load", tostring(c.goodName))
+        Log.warn("tryPickupCargo: good '%s' not found", tostring(c.goodName))
         return
     end
 
-    ship:addCargo(g:good(), c.amount)
-    Log.info("_loadCargo: loaded %d %s onto ship; dest=(%d:%d) reward=%d speedBonus=%d window=%ds",
-        c.amount, c.goodName, c.destX, c.destY, c.reward, c.speedBonus, math.floor(c.speedBonusWindow))
+    ship:addCargo(g:good(), amount)
+
+    local dispName = g:good():displayName(amount)
+    Log.info("tryPickupCargo: loaded %d %s onto ship; dest=(%d:%d) reward=%d speedBonus=%d window=%ds",
+        amount, c.goodName, c.destX, c.destY, total, speedBon, math.floor(window))
 
     Log.sendMail(player,
         "Transport Contract: Cargo Loaded"%_t,
-        string.format("Loaded %d %s.\nDeliver to sector (%d:%d).\nBase reward: %s credits (+%s speed bonus if delivered within %d min).",
-            c.amount, g:good():displayName(c.amount),
+        string.format(
+            "Loaded %d %s.\nDeliver to sector (%d:%d).\nBase reward: %s credits (+%s speed bonus if delivered within %d min).",
+            amount, dispName,
             c.destX, c.destY,
-            createMonetaryString(c.reward),
-            createMonetaryString(c.speedBonus),
-            math.floor(c.speedBonusWindow / 60)))
+            createMonetaryString(total),
+            createMonetaryString(speedBon),
+            math.floor(window / 60)))
 
-    local dispName = g:good():displayName(c.amount)
     mission.data.description[2].fulfilled = true
     mission.data.description[3].visible   = true
     mission.data.description[3].arguments = {
-        amount  = c.amount, good = dispName,
-        x       = c.destX,  y    = c.destY,
-        station = "a station",  -- updated to specific name when Phase 3 initializes
+        amount  = amount, good = dispName,
+        x       = c.destX, y  = c.destY,
+        station = "a station",  -- updated to the specific station name when Phase 3 initialises
     }
 
     setPhase(2)
-end)
-
-local abandonMission = makeDialogServerCallback("_abandonMission", function()
-    terminate()
-end)
+end
+callable(nil, "tryPickupCargo")
 
 -- ============================================================
 -- Phase 2 — In Transit
@@ -271,7 +234,9 @@ mission.phases[2].updateServer = function(dt)
     local c = mission.data.custom
     c.elapsed = (c.elapsed or 0) + dt
 
-    local x, y = Sector():getCoordinates()
+    local sector = Sector()
+    if not sector then return end
+    local x, y = sector:getCoordinates()
     if x == c.destX and y == c.destY then
         setPhase(3)
     end
@@ -333,15 +298,22 @@ mission.phases[3] = {}
 
 mission.phases[3].initialize = function(restoring)
     if restoring then return end
+    local c        = mission.data.custom
     local stations = {Sector():getEntitiesByType(EntityType.Station)}
+
     if #stations > 0 then
-        local s = stations[random():getInt(1, #stations)]
-        local c = mission.data.custom
+        local s     = stations[random():getInt(1, #stations)]
+        local sType = s.title or "station"
+        local sName = s.name
+
         c.destStationId   = s.id.string
-        c.destStationName = s.name or s.title or "station"
+        -- Build "Name (Type)" when an owner name exists, otherwise just the type
+        c.destStationName = (sName and sName ~= "" and sName ~= sType)
+            and (sName .. " (" .. sType .. ")")
+            or  sType
+
         mission.data.targets = {s.id.string}
 
-        -- Update description bullet to name the station
         mission.data.description[3].arguments = {
             amount  = c.amount,
             good    = goods[c.goodName] and goods[c.goodName]:good():displayName(c.amount) or c.goodName,
@@ -349,18 +321,26 @@ mission.phases[3].initialize = function(restoring)
             y       = c.destY,
             station = c.destStationName,
         }
+
+        Log.info("Phase3.initialize: delivery target '%s' (%s) id=%s",
+            c.destStationName, sType, c.destStationId)
+    else
+        -- No stations in sector — accept delivery at any station the player docks at
+        Log.warn("Phase3.initialize: no stations in destination sector (%d:%d)", c.destX, c.destY)
     end
 end
 
 mission.phases[3].onStartDialog = function(entityId)
     local c = mission.data.custom
+    -- If we have a target station, only add the option at that station.
+    -- If destStationId is empty (no stations at initialize time), accept at any station.
     if c.destStationId ~= "" and tostring(entityId) ~= c.destStationId then return end
 
     local g = goods[c.goodName]
     if not g then return end
 
     local ui = ScriptUI(entityId)
-    ui:addDialogOption("Deliver ${amount} ${good}"%_t % {
+    ui:addDialogOption(("Deliver ${amount} ${good}"%_t) % {
         amount = c.amount,
         good   = g:good():displayName(c.amount),
     }, "tryDeliverCargo")
@@ -449,7 +429,7 @@ function getMissionDescription()
             x      = c.destX, y = c.destY,
         }
     elseif phase == 2 then
-        local timeLeft = math.max(0, (c.speedBonusWindow or 0) - (c.elapsed or 0))
+        local timeLeft  = math.max(0, (c.speedBonusWindow or 0) - (c.elapsed or 0))
         local bonusLine = timeLeft > 0
             and (" Speed bonus: ${m} min remaining."%_T % {m = math.floor(timeLeft / 60)})
             or  ""
@@ -458,9 +438,9 @@ function getMissionDescription()
             x = c.destX, y = c.destY, b = bonusLine,
         }
     else
-        local stationLabel = (c.destStationName and c.destStationName ~= "") and c.destStationName or "the station"
+        local label = (c.destStationName ~= "") and c.destStationName or "the station"
         return ("Dock at ${station} in sector (${x}:${y}) to deliver the cargo."%_T) % {
-            station = stationLabel, x = c.destX, y = c.destY,
+            station = label, x = c.destX, y = c.destY,
         }
     end
 end

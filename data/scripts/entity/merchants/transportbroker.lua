@@ -5,7 +5,10 @@ package.path = package.path .. ";data/scripts/lib/?.lua"
 
 include("randomext")
 include("goods")
-local SectorSpecifics = include("sectorspecifics")
+-- include() throws (not returns nil) when a module isn't on the search path.
+-- Command scripts don't have lib/ in their path, so guard with pcall.
+local _ssOk, SectorSpecifics = pcall(include, "sectorspecifics")
+if not _ssOk then SectorSpecifics = nil end
 local Balancing        = include("galaxy")
 local TruckerLog       = include("truckerlog")
 
