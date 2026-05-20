@@ -8,6 +8,19 @@ sector-hopping merchant to galaxy-spanning trader by reading markets.
 
 ## What it does
 
+- **Cargo Transport Missions.** Station bulletin boards at Trading Posts,
+  Resource Depots, Factories, Habitats, and Biotopes now post **Transport
+  Contracts** — pick up a cargo shipment, fly it to a destination sector
+  5–30 sectors away, and collect a reward. Cargo amounts and rewards
+  scale with the sector zone (outer / mid / inner). Deliver before the
+  speed-bonus window for a +30% credit bonus. High-value shipments
+  (>50,000 cr cargo value) attract en-route pirate ambushes — pirates
+  are already waiting in sectors you jump through. No hard time limit;
+  the contract persists across saves.
+  > **Maintenance note:** `data/scripts/entity/missionbulletins.lua` is
+  > a full replacement of the vanilla file (baseline: Avorion 2.5.11).
+  > Re-sync this file when the vanilla version changes.
+
 - **Faction Economy + Specialization.** At first observation, every NPC
   faction is assigned an **Economy** (Agricultural, Industrial, Mining,
   Refinery, Frontier, Mercantile, Militant) via a trait-weighted roll,

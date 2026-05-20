@@ -6,7 +6,8 @@
       "Bash(xargs grep -l -i -E \"trade|economy|commodity|goods|price\")",
       "Bash(openspec new *)",
       "Bash(openspec status *)",
-      "Bash(openspec instructions *)"
+      "Bash(openspec instructions *)",
+      "Bash(cd C:\\\\Users\\\\Servamp\\\\Documents\\\\GitHub\\\\spaceTrucker *)"
     ]
   }
 }

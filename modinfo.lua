@@ -34,7 +34,11 @@ Read the markets. Run the routes. Get rich. The cargo bay doesn't care how you f
     -- This will be used to check for unmet dependencies or incompatibilities, and to check compatibility between clients and dedicated servers with mods.
     -- If a client with an unmatching major or minor mod version wants to log into a server, login is prohibited.
     -- Unmatching patch version still allows logging into a server. This works in both ways (server or client higher or lower version).
-    version = "0.2.0",
+    version = "0.3.0",
+    -- v0.3.0 adds cargo transport missions:
+    --   data/scripts/player/missions/transportmission.lua  (new mission script)
+    --   data/scripts/entity/merchants/transportbroker.lua  (contract generation lib)
+    --   data/scripts/entity/missionbulletins.lua           (replaces vanilla — adds transport entries)
 
     -- If your mod requires dependencies, enter them here. The game will check that all dependencies given here are met.
     -- Possible attributes:
