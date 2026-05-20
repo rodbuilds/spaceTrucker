@@ -1,4 +1,4 @@
--- Sector Survey: derives best-buy / best-sell observations per commodity
+-- Journal survey data layer: derives best-buy / best-sell observations per commodity
 -- for the player's effective journal (personal + alliance-shared) and
 -- formats them for display.
 package.path = package.path .. ";data/scripts/lib/?.lua"
@@ -89,15 +89,22 @@ function TruckerSurvey.formatArchetypeHint(player, faction)
     local report = TruckerReports.latestFor(player, faction.index)
     if not report then
         return {string.format(
-            "[%s] Faction archetype unknown — purchase a Faction Commodity Report to learn.",
+            "[%s] Economy unknown - acquire a Faction Survey from the Quantum Trading AI to learn.",
             tostring(faction.name))}
     end
-    local cheap = #report.biasCheap > 0 and table.concat(report.biasCheap, ", ") or "(none)"
-    local dear  = #report.biasDear  > 0 and table.concat(report.biasDear,  ", ") or "(none)"
+    local economy        = report.economy or report.archetype       -- new shape, legacy fallback
+    local specialization = report.specialization or report.strength or 1.0
+    local sellsCheap, buysHigh = TruckerReports.summarizeBias(economy, specialization)
+    local cheap = #sellsCheap > 0 and table.concat(sellsCheap, ", ") or "(none)"
+    local dear  = #buysHigh   > 0 and table.concat(buysHigh,   ", ") or "(none)"
+    local TruckerArchetypes = include("truckerarchetypes")
+    local stars = TruckerArchetypes.specializationStarString(specialization)
+    local label = TruckerArchetypes.specializationLabel(specialization)
     local lines = {
-        string.format("[%s — %s]", tostring(faction.name), tostring(report.archetype)),
-        string.format("  Tends CHEAP: %s", cheap),
-        string.format("  Tends DEAR : %s", dear),
+        string.format("[%s -- %s Economy  %s (%s)]",
+            tostring(faction.name), tostring(economy), stars, label),
+        string.format("  Sells cheap: %s", cheap),
+        string.format("  Buys high  : %s", dear),
     }
     local atWar = TruckerReports.atWarWith(faction)
     if #atWar > 0 then

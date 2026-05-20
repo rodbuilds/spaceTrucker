@@ -1,28 +1,40 @@
-# Space Trucker
+# Space Trucker: Quantum Trade
 
 A mod for Avorion (2.5.11–3.0.0) that introduces trucking as a fourth
-profession alongside salvage, mining, and combat. Faction-flavored markets,
-a personal trade journal, and purchasable intel let you progress from
+profession alongside salvage, mining, and combat. Faction-flavored
+markets, a persistent trade journal, an at-station Quantum Trading AI,
+and a Trader's Codex of Faction Surveys let you progress from
 sector-hopping merchant to galaxy-spanning trader by reading markets.
 
 ## What it does
 
-- **Faction commodity bias.** At galaxy generation, every NPC faction is
-  assigned an economic archetype (Agricultural, Industrial, Mining,
-  Refinery, Frontier, Mercantile, Militant) derived from a weighted roll
-  biased by the faction's vanilla traits. Station prices in that faction's
-  space are modified to reflect the archetype.
-- **Trade journal.** When your ship has a Trading System upgrade and you
-  enter a sector, every station price you can see is recorded into a
-  per-player journal. Journals auto-share within alliances.
-- **Faction commodity reports.** Trading Posts and Faction Headquarters
-  in archetype-assigned space sell snapshot reports identifying that
-  faction's archetype and the relevant slice of your alliance's
-  observations. War-status warnings are derived live.
-- **Sector Survey panel.** A standalone window (reached via the report
-  merchant interaction) cross-references your journal against the
-  current location, surfacing best-buy and best-sell observations per
-  commodity.
+- **Faction Economy + Specialization.** At first observation, every NPC
+  faction is assigned an **Economy** (Agricultural, Industrial, Mining,
+  Refinery, Frontier, Mercantile, Militant) via a trait-weighted roll,
+  plus a **Specialization** scalar (rendered as 1–5 stars) that controls
+  how strongly the Economy biases their commodity prices. Stations in
+  that faction's space sell low / buy high on their characteristic goods.
+- **Trade journal.** With a Trading System upgrade equipped, every
+  station price you can see is recorded into a per-player journal as
+  you enter sectors. Journals auto-share within alliances.
+- **Quantum Trading AI.** At every Trading Post and Faction Headquarters,
+  pay a flat fee to run a Trade Report — a whole-journal analysis with
+  two tabs:
+  - **Best Prices**: per-commodity best buy and best sell stations across
+    your entire journal, far beyond the range of a vanilla Trading Subsystem.
+  - **Trade Routes**: canonical sector-pair round-trip loops where BOTH
+    legs are profitable, including stock/demand context per leg, per-trip
+    profit, and round-trip total. Sortable via a vanilla-style dropdown.
+  One payment unlocks both tabs and stays valid for 1 hour across any
+  Trading Post. The AI also offers a Faction Survey for the current
+  station's faction. **Hover any cell for full details.**
+- **Faction Surveys + Trader's Codex.** Acquire a permanent Survey of a
+  faction's economy from the Quantum Trading AI; review them any time
+  from the **Trader's Codex** tab on your player menu (P). Each Codex
+  entry shows the faction's Economy, Specialization, Sells Low / Buys
+  High tag lists, a Galactic Avg vs Faction Avg commodity table (hover
+  any row for tag + multiplier detail), and a "Show Home Sector on Map"
+  button to navigate to their space.
 
 ## Installation
 
@@ -35,6 +47,7 @@ once published.
 namespaces' `getBuyPrice` and `getSellPrice` functions. It is therefore
 incompatible with other mods that override the same functions on these
 namespaces:
+
 - `TradingPost`
 - `Factory`
 - `Consumer` (and inheriting merchants: Biotope, Refinery, Habitat,
@@ -44,6 +57,7 @@ namespaces:
 - `SmugglersMarket`
 
 **Known incompatibilities:**
+
 - Any "Trading Overhaul" workshop mod that replaces these scripts.
 - Carrier Commander's economy adjustments (untested but likely conflicts).
 
@@ -52,24 +66,44 @@ will leave orphaned `Faction:setValue("trucker_*", ...)` and
 `Player:setValue("trucker_*", ...)` keys in the savegame; they are
 silently ignored without the mod running.
 
+**Upgrading from v0.1.0 (MVP):** no migration is performed. Legacy
+report entries are silently skipped on read with a one-time log
+warning. For best results, create a new galaxy when upgrading to
+v0.2.0.
+
 ## Configuration
 
 Server operators can edit `data/config/spacetrucker.lua` to tune:
+
 - `journalMaxEntries` (default 5000) — per-player / per-alliance journal cap
-- `reportPriceBase`, `reportPricePerPower` — faction report pricing formula
-- `reportSnapshotRows` (default 100) — rows captured per report
-- `archetypeMaxShare` (default 0.30) — distribution guardrail
+- `tradeReportFee` (default 50,000 cr) — Quantum Trading AI per-open fee
+- `factionSurveyBasePrice` (default 1,000,000 cr) — Faction Survey base; final
+  acquisition price is `base × specialization`, so range is ~300k–1.8M cr
+- `surveyObservationCap` (default 2000) — max journal observations
+  aggregated into a single Trade Report
+- `archetypeMaxShare` (default 0.30) — distribution guardrail across
+  factions for any one Economy
+
+## Player menu
+
+Open the **Trader's Codex** tab from the player menu (P) to browse
+acquired Faction Surveys. A vanilla-style sort dropdown at the top
+offers Faction (A-Z / Z-A, default A-Z), Economy (A-Z), Specialization
+(high/low), and Date Acquired (newest/oldest). Click a row to open
+detail; hover any commodity in the detail table for full tag +
+multiplier info.
 
 ## Diagnostics
 
 In-game admin commands (require server-admin privileges):
 
-- `/trucker debug` — dump archetype distribution; show your journal/report
-  totals
-- `/trucker reports` — list your purchased reports with archetype, bias
-  summary, snapshot size, war-status
-- `/trucker survey` — print your journal cross-reference for every
-  commodity you've observed
+- `/trucker debug` — dump Economy distribution; show journal + Survey
+  counts
+- `/trucker reports` (alias `/trucker codex`) — chat output of every
+  Faction Survey you own with the live Galactic Avg vs Faction Avg
+  price band
+- `/trucker survey` — chat output of your journal cross-reference per
+  commodity (best buy / best sell stations)
 
 ## Authors
 

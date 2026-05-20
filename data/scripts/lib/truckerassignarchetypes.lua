@@ -19,6 +19,7 @@ TruckerAssignArchetypes = {}
 local COUNT_PREFIX = "trucker_arch_count_"
 local TOTAL_KEY    = "trucker_arch_total"
 local ARCH_KEY     = "trucker_archetype"
+local STRENGTH_KEY = "trucker_strength"
 
 local function readCounts()
     if not onServer() then return {}, 0 end
@@ -46,6 +47,16 @@ function TruckerAssignArchetypes.ensureAssigned(faction)
 
     local existing = faction:getValue(ARCH_KEY)
     if existing and TruckerArchetypes.isValid(existing) then
+        -- Back-fill specialization for factions assigned before specialization
+        -- was tracked (or whose strength persistence failed). Roll only the
+        -- specialization; the economy stays put.
+        if type(faction:getValue(STRENGTH_KEY)) ~= "number" then
+            local _, _, specialization = TruckerRoll.rollFor(faction, {}, 0)
+            faction:setValue(STRENGTH_KEY, specialization)
+            TruckerLog.info(
+                "Back-filled specialization %.2f for %s (#%d)",
+                specialization, tostring(faction.name or "?"), faction.index or -1)
+        end
         return existing
     end
 
@@ -54,24 +65,39 @@ function TruckerAssignArchetypes.ensureAssigned(faction)
     end
 
     local counts, total = readCounts()
-    local choice, fallback = TruckerRoll.rollFor(faction, counts, total)
+    local choice, fallback, strength = TruckerRoll.rollFor(faction, counts, total)
 
     faction:setValue(ARCH_KEY, choice)
-    -- Bias is intentionally NOT persisted: it's a fixed function of archetype.
-    -- Derive on demand via TruckerArchetypes.getBias(archetype).
+    faction:setValue(STRENGTH_KEY, strength)
 
     local newCount = (counts[choice] or 0) + 1
     writeCount(choice, newCount, total + 1)
 
     TruckerLog.info(
-        "Assigned archetype %s to faction %s (#%d)%s",
-        choice,
+        "Assigned archetype %s [strength %.2f] to faction %s (#%d)%s",
+        choice, strength,
         tostring(faction.name or "?"),
         faction.index or -1,
         fallback and " [trait fallback]" or ""
     )
 
-    return choice
+    return choice, strength
+end
+
+-- Read existing specialization (or default 1.0 if missing).
+-- Returns nil only if the faction has no economy assignment.
+function TruckerAssignArchetypes.getSpecialization(faction)
+    if not onServer() or not faction then return nil end
+    local arch = faction:getValue(ARCH_KEY)
+    if not arch or not TruckerArchetypes.isValid(arch) then return nil end
+    local s = faction:getValue(STRENGTH_KEY)
+    if type(s) ~= "number" then return 1.0 end
+    return s
+end
+
+-- Back-compat alias. Prefer getSpecialization in new code.
+function TruckerAssignArchetypes.getStrength(faction)
+    return TruckerAssignArchetypes.getSpecialization(faction)
 end
 
 -- Dump current distribution to the log. Useful for the §2.8 verification.

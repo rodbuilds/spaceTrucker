@@ -10,7 +10,8 @@ local TruckerArchetypes = include("truckerarchetypes")
 
 TruckerPriceHook = {}
 
-local STATION_ARCH_KEY = "trucker_station_arch"
+local STATION_ARCH_KEY     = "trucker_station_arch"
+local STATION_STRENGTH_KEY = "trucker_station_strength"
 
 local TAG_PRIORITY = {
     "illegal", "military", "hightech", "consumer",
@@ -25,20 +26,22 @@ local function pickTag(goodTags)
     return nil
 end
 
-local function entityArchetype()
+local function entityArchAndStrength()
     local okE, entity = pcall(function() return Entity() end)
-    if not okE or not entity then return nil end
-    local okV, arch = pcall(function() return entity:getValue(STATION_ARCH_KEY) end)
-    if not okV or type(arch) ~= "string" or arch == "" then return nil end
-    if not TruckerArchetypes.isValid(arch) then return nil end
-    return arch
+    if not okE or not entity then return nil, nil end
+    local okA, arch = pcall(function() return entity:getValue(STATION_ARCH_KEY) end)
+    if not okA or type(arch) ~= "string" or arch == "" then return nil, nil end
+    if not TruckerArchetypes.isValid(arch) then return nil, nil end
+    local okS, strength = pcall(function() return entity:getValue(STATION_STRENGTH_KEY) end)
+    if not okS or type(strength) ~= "number" then strength = 1.0 end
+    return arch, strength
 end
 
 local function biasFactor(good)
     if not good then return 1.0 end
-    local arch = entityArchetype()
+    local arch, strength = entityArchAndStrength()
     if not arch then return 1.0 end
-    local bias = TruckerArchetypes.getBias(arch)
+    local bias = TruckerArchetypes.getEffectiveBias(arch, strength)
     if type(bias) ~= "table" then return 1.0 end
     local tag = pickTag(good.tags)
     if not tag then return 1.0 end

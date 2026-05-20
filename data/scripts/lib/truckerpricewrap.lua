@@ -8,9 +8,11 @@ local TruckerLog       = include("truckerlog")
 
 TruckerPriceWrap = {}
 
-local STATION_ARCH_KEY = "trucker_station_arch"
+local STATION_ARCH_KEY     = "trucker_station_arch"
+local STATION_STRENGTH_KEY = "trucker_station_strength"
 
--- Server-side: set the archetype on the entity so clients can read it.
+-- Server-side: set the archetype + strength on the entity so clients can
+-- read them and apply the same bias.
 local function markEntityArchetype()
     if not onServer() then return end
     local entity = Entity()
@@ -21,12 +23,17 @@ local function markEntityArchetype()
     local TruckerAssign   = include("truckerassignarchetypes")
     if TruckerExcluded.isExcluded(faction) then return end
     local arch = TruckerAssign.ensureAssigned(faction)
-    if arch then
-        local ok, current = pcall(function() return entity:getValue(STATION_ARCH_KEY) end)
-        if not ok or current ~= arch then
-            pcall(function() entity:setValue(STATION_ARCH_KEY, arch) end)
+    if not arch then return end
+    local strength = TruckerAssign.getStrength(faction) or 1.0
+
+    pcall(function()
+        if entity:getValue(STATION_ARCH_KEY) ~= arch then
+            entity:setValue(STATION_ARCH_KEY, arch)
         end
-    end
+        if entity:getValue(STATION_STRENGTH_KEY) ~= strength then
+            entity:setValue(STATION_STRENGTH_KEY, strength)
+        end
+    end)
 end
 
 -- Wrap the price functions and initialize on `namespace`. Idempotent.
