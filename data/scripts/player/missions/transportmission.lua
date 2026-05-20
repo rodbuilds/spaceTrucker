@@ -163,11 +163,16 @@ function tryPickupCargo()
 
     if free < bounds.min then
         -- Not enough space — refusal dialog
+        -- onEnd must be on a dialog object, not on an answer entry; use followUp chain
+        local d_cancel = {}
+        d_cancel.text = "Contract cancelled."%_T
+        d_cancel.onEnd = "_abandonMission"
+
         local d = {}
         d.text = "We need at least ${min} units of cargo space. Your ship currently has ${free} units free. Come back with a larger ship."%_T % {min = bounds.min, free = free}
         d.answers = {
             {answer = "I'll come back with a larger ship."%_t},
-            {answer = "Not interested."%_t,  onEnd = abandonMission},
+            {answer = "Not interested."%_t, followUp = d_cancel},
         }
         ScriptUI(mission.data.giver.id):interactShowDialog(d, false)
         return
@@ -194,8 +199,13 @@ function tryPickupCargo()
         mins   = math.floor(window / 60),
         bonus  = createMonetaryString(speedBon),
     }
+    -- onEnd must be on a dialog object, not on an answer entry; use followUp chain
+    local d_loaded = {}
+    d_loaded.text = ("Cargo secured. Deliver to sector (${x}:${y}). Safe travels."%_T) % {x = c.destX, y = c.destY}
+    d_loaded.onEnd = "_loadCargo"
+
     d1.answers = {
-        {answer = "Load the cargo."%_t, onEnd = loadCargoCallback},
+        {answer = "Load the cargo."%_t, followUp = d_loaded},
         {answer = "Maybe later."%_t},
     }
     ScriptUI(mission.data.giver.id):interactShowDialog(d1, false)

@@ -30,7 +30,53 @@ function MissionBulletins.random()
     return MissionBulletins.randomGenerator
 end
 
+local TRANSPORT_PATH = "data/scripts/player/missions/transportmission.lua"
+local TRANSPORT_MIN  = 3
+
+local function isTransportEligible(title)
+    if title == "Trading Post"  then return true end
+    if title == "Resource Depot" then return true end
+    if title == "Habitat"        then return true end
+    if title == "Biotope"        then return true end
+    if string.match(title, "Factory$") and title ~= "Fighter Factory" and title ~= "Turret Factory" then return true end
+    return false
+end
+
+-- Count transport bulletins currently on the board by inspecting the bulletin list.
+-- Falls back to 0 if the board API is unavailable.
+local function countTransportBulletins()
+    local ok, bulletins = Entity():invokeFunction("bulletinboard", "getBulletins")
+    if ok ~= 0 or type(bulletins) ~= "table" then return 0 end
+    local n = 0
+    for _, b in ipairs(bulletins) do
+        if type(b.script) == "string" and string.find(b.script, "transportmission", 1, true) then
+            n = n + 1
+        end
+    end
+    return n
+end
+
+local function postOneTransportBulletin()
+    local ok, bulletin = run(TRANSPORT_PATH, "getBulletin", Entity())
+    if ok == 0 and bulletin then
+        Entity():invokeFunction("bulletinboard", "postBulletin", bulletin)
+        return true
+    end
+    return false
+end
+
+-- Ensure at least `target` transport bulletins are on the board.
+local function ensureTransportBulletins(target)
+    if not isTransportEligible(Entity().title) then return end
+    local current = countTransportBulletins()
+    local needed  = target - current
+    for i = 1, needed do
+        postOneTransportBulletin()
+    end
+end
+
 function MissionBulletins.initialize()
+    ensureTransportBulletins(TRANSPORT_MIN)
 end
 
 function MissionBulletins.getUpdateInterval()
@@ -41,7 +87,7 @@ function MissionBulletins.updateServer(timeStep)
     MissionBulletins.updateBulletins(timeStep)
 end
 
-local updateFrequency = 60 * 60
+local updateFrequency = 15 * 60
 local updateTime
 function MissionBulletins.updateBulletins(timeStep)
 
@@ -88,6 +134,9 @@ function MissionBulletins.addOrRemoveMissionBulletin()
             Entity():invokeFunction("bulletinboard", "removeBulletin", bulletin.brief)
         end
     end
+
+    -- Space Trucker: top up transport bulletins to minimum on every tick
+    ensureTransportBulletins(TRANSPORT_MIN)
 end
 
 function MissionBulletins.getWeightedRandomEntry(scripts)
