@@ -92,6 +92,15 @@ end
 --   → destX, destY  (nil, nil if none found)
 -- ============================================================
 function TransportBroker.selectDestination(sourceX, sourceY, sourceFactionId)
+    if not SectorSpecifics then
+        -- sectorspecifics not available in this context (e.g. command scripts); return a simple random sector
+        local r     = random()
+        local angle = r:getFloat(0, 2 * math.pi)
+        local dist  = r:getInt(5, 30)
+        return sourceX + math.floor(dist * math.cos(angle) + 0.5),
+               sourceY + math.floor(dist * math.sin(angle) + 0.5)
+    end
+
     local specs      = SectorSpecifics()
     local serverSeed = Server().seed
     local coords     = specs.getShuffledCoordinates(random(), sourceX, sourceY, 5, 30)

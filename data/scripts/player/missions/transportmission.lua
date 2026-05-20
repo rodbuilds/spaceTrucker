@@ -38,7 +38,7 @@ mission.data.description    = {}
 mission.data.description[1] = {text = "Transport cargo to a distant station for a reward."%_T}
 mission.data.description[2] = {text = "Dock at ${giver} to pick up your cargo."%_T,
                                 bulletPoint = true, fulfilled = false, visible = false}
-mission.data.description[3] = {text = "Deliver ${amount} ${good} to a station in sector (${x}:${y})."%_T,
+mission.data.description[3] = {text = "Deliver ${amount} ${good} to ${station} in sector (${x}:${y})."%_T,
                                 bulletPoint = true, fulfilled = false, visible = false}
 
 mission.data.custom.goodName         = ""
@@ -53,6 +53,7 @@ mission.data.custom.speedBonusWindow = 0
 mission.data.custom.relations        = 0
 mission.data.custom.elapsed          = 0
 mission.data.custom.destStationId    = ""
+mission.data.custom.destStationName  = ""
 
 -- ============================================================
 -- Bulletin generation  (called server-side from missionbulletins)
@@ -148,7 +149,6 @@ end
 
 function tryPickupCargo()
     if onClient() then
-        ScriptUI(mission.data.giver.id):interactShowDialog(Dialog.empty())
         invokeServerFunction("tryPickupCargo")
         return
     end
@@ -241,8 +241,9 @@ local loadCargoCallback = makeDialogServerCallback("_loadCargo", 1, function()
     mission.data.description[2].fulfilled = true
     mission.data.description[3].visible   = true
     mission.data.description[3].arguments = {
-        amount = c.amount, good = dispName,
-        x = c.destX, y = c.destY,
+        amount  = c.amount, good = dispName,
+        x       = c.destX,  y    = c.destY,
+        station = "a station",  -- updated to specific name when Phase 3 initializes
     }
 
     setPhase(2)
@@ -335,8 +336,19 @@ mission.phases[3].initialize = function(restoring)
     local stations = {Sector():getEntitiesByType(EntityType.Station)}
     if #stations > 0 then
         local s = stations[random():getInt(1, #stations)]
-        mission.data.custom.destStationId = s.index.string
-        mission.data.targets = {s.index.string}
+        local c = mission.data.custom
+        c.destStationId   = s.id.string
+        c.destStationName = s.name or s.title or "station"
+        mission.data.targets = {s.id.string}
+
+        -- Update description bullet to name the station
+        mission.data.description[3].arguments = {
+            amount  = c.amount,
+            good    = goods[c.goodName] and goods[c.goodName]:good():displayName(c.amount) or c.goodName,
+            x       = c.destX,
+            y       = c.destY,
+            station = c.destStationName,
+        }
     end
 end
 
@@ -446,8 +458,9 @@ function getMissionDescription()
             x = c.destX, y = c.destY, b = bonusLine,
         }
     else
-        return ("Dock at any station in sector (${x}:${y}) to deliver the cargo."%_T) % {
-            x = c.destX, y = c.destY,
+        local stationLabel = (c.destStationName and c.destStationName ~= "") and c.destStationName or "the station"
+        return ("Dock at ${station} in sector (${x}:${y}) to deliver the cargo."%_T) % {
+            station = stationLabel, x = c.destX, y = c.destY,
         }
     end
 end
