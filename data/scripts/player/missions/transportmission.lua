@@ -390,20 +390,23 @@ function tryDeliverCargo()
         speedBon = math.floor(c.speedBonus * fraction)
     end
 
-    mission.data.reward = {
-        credits        = credits + speedBon,
-        relations      = math.floor(c.relations * fraction),
-        paymentMessage = speedBon > 0
-            and "Earned %1% Credits for cargo delivery (speed bonus included)."%_T
-            or  "Earned %1% Credits for cargo delivery."%_T,
-    }
+    local total   = credits + speedBon
+    local mBefore = player.money or 0
+    player:receive(total)
+    local mAfter  = player.money or 0
+
+    mission.data.reward         = total
+    mission.data.paymentMessage = speedBon > 0
+        and "Earned %1% Credits for cargo delivery (speed bonus included)."%_T
+        or  "Earned %1% Credits for cargo delivery."%_T
 
     mission.data.accomplishMessage = speedBon > 0
         and "Cargo delivered ahead of schedule! Speed bonus awarded."%_T
         or  "Cargo delivered successfully."%_T
 
     Log.info("onDelivery: removed=%d/%d fraction=%.2f base=%d speedBon=%d total=%d elapsed=%.0fs window=%.0fs",
-        removed, c.amount, fraction, credits, speedBon, credits + speedBon, c.elapsed or 0, c.speedBonusWindow or 0)
+        removed, c.amount, fraction, credits, speedBon, total, c.elapsed or 0, c.speedBonusWindow or 0)
+    Log.info("payment: moneyBefore=%d reward=%d moneyAfter=%d", mBefore, total, mAfter)
 
     accomplish()
 end
