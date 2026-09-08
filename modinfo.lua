@@ -74,10 +74,6 @@ SmugglersMarket namespaces, and fully replaces
 data/scripts/entity/missionbulletins.lua (vanilla baseline 2.5.11).
 Any other mod touching those will conflict.
 
-saveGameAltering is true: disabling the mod leaves inert trucker_*
-keys in the savegame. Upgrading from v0.1.0 performs no migration;
-start a new galaxy for best results.
-
 Source, issue tracker and full documentation:
 https://github.com/rodbuilds/spaceTrucker]],
 
