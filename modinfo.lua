@@ -21,11 +21,30 @@ meta =
 
 Space Trucker: Quantum Trade makes hauling a real profession. Every NPC faction quietly gets a hidden Economy (Industrial, Mining, Refinery, Frontier, Mercantile, Militant, Agricultural) and a Specialization rating from 1 to 5 stars. Those two numbers bias every station price in their territory: a Heavily Industrial faction sells parts cheap and pays premium for raw inputs; a Pure Mining faction practically gives ore away. The bigger the Specialization, the wider the spread.
 
-Equip a Trading System and the mod starts a persistent journal of every price you can see, sector after sector, far beyond what one ship can remember. At any Trading Post, pay the Quantum Trading AI to crunch the entire log into per-commodity best-buy and best-sell intel: who sells lowest, who buys highest, which stations are worth the jump. Like the vanilla Trading Subsystem, but unbound by range.
+Equip a Trading System and the mod starts a persistent journal of every price you can see, sector after sector, far beyond what one ship can remember. At any Trading Post or Faction Headquarters, pay the Quantum Trading AI to crunch the entire log into per-commodity best-buy and best-sell intel: who sells lowest, who buys highest, which stations are worth the jump. Like the vanilla Trading Subsystem, but unbound by range.
 
 Find a faction worth specializing in? Acquire a permanent Faction Survey from the AI and file it in your Trader's Codex -- a tab on your player menu (press P) listing every faction you've studied, sortable by name, Economy, Specialization, or date. Each entry shows Galactic Avg vs Faction Avg per commodity so you know exactly what they pay for what.
 
 Read the markets. Run the routes. Get rich. The cargo bay doesn't care how you feel about combat.
+
+----------------------------------------------------------------
+WHERE TO FIND THINGS
+
+Transport contracts -- on station Bulletin Boards. Select any Trading
+Post, Resource Depot, Habitat, Biotope or Factory and open its Bulletin
+Board; transport contracts appear alongside the vanilla missions.
+Fighter Factories and Turret Factories are excluded. Each eligible
+station carries up to 4 transport contracts and refreshes them on a
+60 minute timer, so an empty board usually means you arrived early --
+check another station or come back later.
+
+Quantum Trading AI (Trade Reports + Faction Surveys) -- interact with
+any Trading Post or Faction Headquarters. You need a Trading System
+upgrade equipped for the journal to record prices in the first place;
+with an empty journal the report has nothing to analyse.
+
+Trader's Codex (the Faction Surveys you already own) -- press P to open
+the player menu, then pick the Trader's Codex tab.
 
 ----------------------------------------------------------------
 TROUBLESHOOTING / DIAGNOSTICS
