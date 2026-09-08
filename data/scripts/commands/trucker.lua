@@ -1,4 +1,12 @@
 -- /trucker <subcommand>  -  Space Trucker diagnostic + codex commands.
+--
+-- TODO (v1): remove the transport test commands before the v1 release, or
+-- put them behind a real admin check. Nothing here is permission-gated --
+-- the onServer() guards in cmdTransport are server-side dispatch checks,
+-- not privilege checks, so any player on a multiplayer server can call
+-- these. `transport bulletin` is the pressing one: it posts a real
+-- contract and bypasses the 60-minute bulletin timer, which is a credit
+-- exploit on a public server. Accepted for the 0.3.x beta.
 package.path = package.path .. ";data/scripts/lib/?.lua;data/scripts/entity/merchants/?.lua"
 
 local TruckerAssign        = include("truckerassignarchetypes")

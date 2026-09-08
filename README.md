@@ -108,7 +108,15 @@ multiplier info.
 
 ## Diagnostics & Testing
 
-In-game admin commands (require server-admin privileges):
+In-game chat commands. **These are not permission-gated** —
+`trucker.lua` guards them with `onServer()` only, which is a
+server-side dispatch check, not a privilege check. On a multiplayer
+server any player can run them.
+
+> **TODO (v1):** remove the test commands before the v1 release, or
+> gate them behind an admin check. `/trucker transport bulletin` is
+> the pressing one: it posts a real contract and bypasses the
+> 60-minute timer, so it is a credit exploit on a public server.
 
 - `/trucker debug` — dump Economy distribution; show journal + Survey
   counts
@@ -120,7 +128,8 @@ In-game admin commands (require server-admin privileges):
 
 ### Testing transport missions
 
-All commands below require **server-admin privileges**.
+All commands below are test hooks with **no privilege check** — see the
+TODO above. They are intended for removal at v1.
 
 | Command | What it does |
 |---|---|
