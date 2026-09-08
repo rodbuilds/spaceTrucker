@@ -15,7 +15,7 @@ Write-Host "Deploying to:   $dest"
 Write-Host ""
 
 # Top-level files: copy individually so we don't accidentally pull anything else.
-foreach ($file in @('modinfo.lua', 'README.md')) {
+foreach ($file in @('modinfo.lua', 'README.md', 'thumbnail.png')) {
     $src = Join-Path $source $file
     if (Test-Path $src) {
         Copy-Item -Path $src -Destination $dest -Force
