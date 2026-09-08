@@ -25,7 +25,42 @@ Equip a Trading System and the mod starts a persistent journal of every price yo
 
 Find a faction worth specializing in? Acquire a permanent Faction Survey from the AI and file it in your Trader's Codex -- a tab on your player menu listing every faction you've studied, sortable by name, Economy, Specialization, or date. Each entry shows Galactic Avg vs Faction Avg per commodity so you know exactly what they pay for what.
 
-Read the markets. Run the routes. Get rich. The cargo bay doesn't care how you feel about combat.]],
+Read the markets. Run the routes. Get rich. The cargo bay doesn't care how you feel about combat.
+
+----------------------------------------------------------------
+TROUBLESHOOTING / DIAGNOSTICS
+
+In-game chat commands (run on the server):
+
+  /trucker debug               faction Economy distribution, plus your
+                               journal and Faction Survey counts
+  /trucker reports             list your Faction Surveys with the live
+    (alias /trucker codex)     Galactic Avg vs Faction Avg price band
+  /trucker survey              journal cross-reference: best buy and
+                               best sell station per commodity
+  /trucker transport sim       simulate a transport contract from your
+                               current sector; changes no game state
+  /trucker transport bulletin  force-post one transport bulletin to the
+                               nearest station, bypassing the 60 min timer
+  /trucker transport ambush    prime the next jump to force a pirate
+                               ambush; needs an active transport mission
+
+Server log lines are prefixed [SpaceTrucker]. On first boot, confirm:
+  [SpaceTrucker] [INFO] transportbroker loaded
+  [SpaceTrucker] [INFO] transportmission loaded
+
+Known conflicts: this mod wraps getBuyPrice / getSellPrice on the
+TradingPost, Factory, Consumer, PlanetaryTradingPost, Seller and
+SmugglersMarket namespaces, and fully replaces
+data/scripts/entity/missionbulletins.lua (vanilla baseline 2.5.11).
+Any other mod touching those will conflict.
+
+saveGameAltering is true: disabling the mod leaves inert trucker_*
+keys in the savegame. Upgrading from v0.1.0 performs no migration;
+start a new galaxy for best results.
+
+Source, issue tracker and full documentation:
+https://github.com/rodbuilds/spaceTrucker]],
 
     -- Insert all authors into this list
     authors = {"Rodx", "Servamp"},
@@ -70,5 +105,5 @@ Read the markets. Run the routes. Get rich. The cargo bay doesn't care how you f
     saveGameAltering = true,
 
     -- Contact info for other users to reach you in case they have questions
-    contact = "",
+    contact = "https://github.com/rodbuilds/spaceTrucker",
 }
