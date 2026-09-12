@@ -116,7 +116,7 @@ server any player can run them.
 > **TODO (v1):** remove the test commands before the v1 release, or
 > gate them behind an admin check. `/trucker transport bulletin` is
 > the pressing one: it posts a real contract and bypasses the
-> 60-minute timer, so it is a credit exploit on a public server.
+> 10-minute timer, so it is a credit exploit on a public server.
 
 - `/trucker debug` — dump Economy distribution; show journal + Survey
   counts
@@ -134,7 +134,7 @@ TODO above. They are intended for removal at v1.
 | Command | What it does |
 |---|---|
 | `/trucker transport sim` | Simulates a contract from your current sector. Prints ring, destination, cargo good, amount, reward, speed-bonus window, and ambush threshold — **no game state changed**. Use this first to confirm the broker math is working. |
-| `/trucker transport bulletin` | Force-posts one transport bulletin to the nearest station in your sector right now, bypassing the 60-minute bulletin timer. Use this to test the bulletin board UI without waiting. |
+| `/trucker transport bulletin` | Force-posts one transport bulletin to the nearest station in your sector right now, bypassing the 10-minute bulletin refresh. Use this to test the bulletin board UI without waiting. |
 | `/trucker transport ambush` | Primes the next sector jump to force a pirate ambush on arrival. Requires an active transport mission. Use this to test ambush spawning without needing a high-value cargo shipment (>50,000 cr). |
 
 **Checklist for first boot:**

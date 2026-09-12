@@ -5,7 +5,7 @@
 -- the onServer() guards in cmdTransport are server-side dispatch checks,
 -- not privilege checks, so any player on a multiplayer server can call
 -- these. `transport bulletin` is the pressing one: it posts a real
--- contract and bypasses the 60-minute bulletin timer, which is a credit
+-- contract and bypasses the 10-minute bulletin refresh, which is a credit
 -- exploit on a public server. Accepted for the 0.3.x beta.
 package.path = package.path .. ";data/scripts/lib/?.lua;data/scripts/entity/merchants/?.lua"
 
@@ -96,7 +96,7 @@ end
 -- sim      — simulate contract generation at your current sector and print what the bulletin
 --            board entry would look like. No game state is changed.
 -- bulletin — force-post one transport bulletin to the nearest station in this sector right now
---            (useful for testing without waiting 60 minutes for the bulletin timer to fire).
+--            (useful for testing without waiting out the 10-minute bulletin refresh).
 local function cmdTransport(player, sub)
     sub = sub or "sim"
 

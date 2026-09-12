@@ -35,7 +35,7 @@ Post, Resource Depot, Habitat, Biotope or Factory and open its Bulletin
 Board; transport contracts appear alongside the vanilla missions.
 Fighter Factories and Turret Factories are excluded. Each eligible
 station carries up to 4 transport contracts and refreshes them on a
-60 minute timer, so an empty board usually means you arrived early --
+10 minute timer, so an empty board usually means you arrived early --
 check another station or come back later.
 
 Quantum Trading AI (Trade Reports + Faction Surveys) -- interact with
